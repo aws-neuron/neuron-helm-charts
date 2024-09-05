@@ -1,0 +1,39 @@
+{{- if and .Values.scheduler.enabled .Values.scheduler.defaultScheduler.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "neuron-scheduler.configMapName" . }}
+  namespace: {{ include "neuron-scheduler.namespace" . }}
+  labels:
+    {{- include "neuron-scheduler.labels" . | nindent 4 }}
+data:
+  policy.cfg: |
+    {
+      "kind": "Policy",
+      "apiVersion": "v1",
+      "extenders": [
+        {
+          "urlPrefix": "http://127.0.0.1:32700",
+          "filterVerb": "filter",
+          "bindVerb":   "bind",
+          "enableHttps": false,
+          "nodeCacheCapable": true,
+          "managedResources": [
+            {
+              "name": "aws.amazon.com/neuron",
+              "ignoredByScheduler": false
+            },
+            {
+              "name": "aws.amazon.com/neurondevice",
+              "ignoredByScheduler": false
+            },
+            {
+              "name": "aws.amazon.com/neuroncore",
+              "ignoredByScheduler": false
+            }
+          ],
+          "ignorable": false
+        }
+      ]
+    }
+{{- end }}

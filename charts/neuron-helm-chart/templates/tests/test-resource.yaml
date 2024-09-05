@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "neuron-device-plugin.name" . }}-test"
+  namespace: {{ include "neuron-device-plugin.namespace" .  }}
+  labels:
+    {{- include "neuron-device-plugin.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test-success
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  containers:
+    - name: neuron-resource-test
+      image: public.ecr.aws/neuron/pytorch-inference-neuronx:2.1.2-neuronx-py310-sdk2.19.1-ubuntu20.04
+      command: ['bash', '-ceux']
+      args: ['[[ $(neuron-ls --json-output | jq ". | length") -eq 1 ]] && [[ $(neuron-ls --json-output | jq ".[0].nc_count") -eq 2 ]]']
+      resources:
+        limits:
+          aws.amazon.com/neuron: 1
+  restartPolicy: Never

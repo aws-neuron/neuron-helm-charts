@@ -1,0 +1,134 @@
+{{- if .Values.scheduler.enabled }}
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ include "neuron-scheduler.fullname" . }}
+  labels:
+    {{- include "neuron-scheduler.labels" . | nindent 4 }}
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch"]
+{{- if .Values.scheduler.customScheduler.enabled }}
+- apiGroups: [""]
+  resources: ["nodes/status"]
+  verbs: ["get", "patch", "update", "list", "watch"]
+{{- end }}
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "patch", "update", "list", "watch"]
+- apiGroups: [""]
+  resources: ["bindings", "pods/binding"]
+  verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "neuron-scheduler.fullname" . }}
+  namespace: {{ include "neuron-scheduler.namespace" . }}
+  labels:
+    {{- include "neuron-scheduler.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "neuron-scheduler.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "neuron-scheduler.serviceAccountName" . }}
+  namespace: {{ include "neuron-scheduler.namespace" . }}
+---
+{{- if .Values.scheduler.serviceAccount.create -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "neuron-scheduler.serviceAccountName" . }}
+  namespace: {{ include "neuron-scheduler.namespace" . }}
+  labels:
+    {{- include "neuron-scheduler.labels" . | nindent 4 }}
+  {{- with .Values.scheduler.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: {{ include "neuron-scheduler.fullname" . }}
+  namespace: {{ include "neuron-scheduler.namespace" . }}
+  labels:
+    {{- include "neuron-scheduler.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.scheduler.replicaCount }}
+  {{- with .Values.scheduler.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "neuron-scheduler.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "neuron-scheduler.templateLabels" . | nindent 8 }}
+      {{- with .Values.scheduler.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.scheduler.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "neuron-scheduler.serviceAccountName" . }}
+      {{- with .Values.scheduler.podSecurityContext }}
+      securityContext:
+        {{- toYaml .Values.scheduler.podSecurityContext | nindent 8 }}
+      {{- end }}
+      {{- if .Values.scheduler.priorityClassName }}
+      priorityClassName: {{ .Values.scheduler.priorityClassName }}
+      {{- end }}
+    {{- if .Values.scheduler.defaultScheduler.enabled }}
+      hostNetwork: true
+      {{- with .Values.scheduler.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.scheduler.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- else }}
+      schedulerName: {{ include "neuron-scheduler.customScheduler.fullname" . }}
+    {{- end }}
+      containers:
+        - name: {{ if .Values.scheduler.defaultScheduler.enabled }}neuron-scheduler{{ else }}neuron-scheduler-exp{{ end }}
+          image: {{ include "neuron-scheduler.fullimage" . }}
+          env:
+          - name: PORT
+            value: "12345"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "neuron-scheduler.fullname" . }}
+  namespace: {{ include "neuron-scheduler.namespace" . }}
+  labels:
+    {{- include "neuron-scheduler.labels" . | nindent 4 }}
+spec:
+{{- if .Values.scheduler.defaultScheduler.enabled }}
+  type: NodePort
+{{- end }}
+  ports:
+  - port: 12345
+    name: http
+    targetPort: 12345
+  {{- if .Values.scheduler.defaultScheduler.enabled }}
+    nodePort: 32700
+  {{- end }}
+  selector:
+    {{- include "neuron-scheduler.selectorLabels" . | nindent 4 }}
+{{- end }}
