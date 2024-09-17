@@ -69,5 +69,5 @@ helm upgrade --install neuron-helm-chart oci://public.ecr.aws/neuron/neuron-helm
 ## Uninstalling the Chart
 
 ```
-helm delete neuron-helm-chart oci://public.ecr.aws/neuron/neuron-helm-chart
+helm uninstall neuron-helm-chart
 ```

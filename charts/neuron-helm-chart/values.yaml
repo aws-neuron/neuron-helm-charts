@@ -12,7 +12,7 @@ devicePlugin:
     repository: public.ecr.aws/neuron/neuron-device-plugin
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "2.20.13.0"
+    tag: "2.22.4.0"
   podSecurityContext: {}
   serviceAccount:
     # Specifies whether a service account should be created
@@ -39,7 +39,7 @@ scheduler:
   image:
     repository: public.ecr.aws/neuron/neuron-scheduler
     pullPolicy: IfNotPresent
-    tag: "2.20.13.0"
+    tag: "2.22.4.0"
   imagePullSecrets: []
   nameOverride: neuron-scheduler
   namespaceOverride: kube-system
@@ -146,7 +146,7 @@ npd:
     image:
       repository: public.ecr.aws/neuron/neuron-node-recovery
       pullPolicy: IfNotPresent
-      tag: "1.1.0"
+      tag: "1.2.0"
     resources:
       limits:
         cpu: 10m
