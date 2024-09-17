@@ -1,0 +1,176 @@
+neuronInstances: [ trn1.2xlarge, trn1.32xlarge, trn1n.32xlarge, inf1.xlarge, inf1.2xlarge, inf1.6xlarge, inf1.24xlarge, inf2.xlarge, inf2.8xlarge, inf2.24xlarge, inf2.48xlarge, inf2e.32xlarge ]
+
+devicePlugin:
+  nameOverride: neuron-device-plugin
+  namespaceOverride: kube-system
+  fullnameOverride: neuron-device-plugin
+  selectorLabelsOverride: {}
+  priorityClassName: system-node-critical
+  runtimeClassName: null
+  imagePullSecrets: []
+  image:
+    repository: public.ecr.aws/neuron/neuron-device-plugin
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: "2.22.4.0"
+  podSecurityContext: {}
+  serviceAccount:
+    # Specifies whether a service account should be created
+    create: true
+    # Annotations to add to the service account
+    annotations: {}
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: neuron-device-plugin
+  updateStrategy:
+    type: RollingUpdate
+  podAnnotations: {}
+  securityContext: {}
+  nodeSelector: {}
+  tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists
+  - key: aws.amazon.com/neuron
+    operator: Exists
+    effect: NoSchedule
+
+scheduler:
+  enabled: false
+  image:
+    repository: public.ecr.aws/neuron/neuron-scheduler
+    pullPolicy: IfNotPresent
+    tag: "2.22.4.0"
+  imagePullSecrets: []
+  nameOverride: neuron-scheduler
+  namespaceOverride: kube-system
+  fullnameOverride: k8s-neuron-scheduler
+  replicaCount: 1
+  strategy:
+    type: Recreate
+  priorityClassName: system-node-critical
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+  podAnnotations: {}
+  podSecurityContext: {}
+  securityContext: {}
+  nodeSelector:
+    node-role.kubernetes.io/master: ""
+  tolerations:
+  - effect: NoSchedule
+    operator: Exists
+    key: node-role.kubernetes.io/master
+  - effect: NoSchedule
+    operator: Exists
+    key: node.cloudprovider.kubernetes.io/uninitialized
+  affinity: {}
+  customScheduler:
+    enabled: true
+    nameOverride: ""
+    namespaceOverride: kube-system
+    fullnameOverride: my-scheduler
+    image:
+      repository: public.ecr.aws/eks-distro/kubernetes/kube-scheduler
+      pullPolicy: IfNotPresent
+      tag: "v1.28.5-eks-1-28-latest"
+    replicaCount: 1
+    serviceAccount:
+      create: true
+      annotations: {}
+      name: ""
+    livenessProbe:
+      httpGet:
+        path: /healthz
+        port: 10259
+        scheme: HTTPS
+      initialDelaySeconds: 15
+    readinessProbe:
+      httpGet:
+        path: /healthz
+        port: 10259
+        scheme: HTTPS
+    resources:
+      requests:
+        cpu: '0.1'
+    securityContext:
+      privileged: false
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+  defaultScheduler:
+    enabled: false
+
+npd:
+  enabled: true
+  updateStrategy:
+    type: RollingUpdate
+  config:
+    name: node-problem-detector-config
+  imagePullSecrets: []
+  nameOverride: node-problem-detector
+  namespaceOverride: neuron-healthcheck-system
+  fullnameOverride: node-problem-detector
+  selectorLabelsOverride: {}
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: node-problem-detector
+  podAnnotations: {}
+  podSecurityContext: {}
+  priorityClassName: ""
+  runtimeClassName: ""
+  nodeSelector: {}
+  tolerations:
+  - effect: NoSchedule
+    operator: Exists
+  - effect: NoExecute
+    operator: Exists
+  nodeProblemDetector:
+    image:
+      repository: registry.k8s.io/node-problem-detector/node-problem-detector
+      pullPolicy: IfNotPresent
+      tag: "v0.8.19"
+    resources:
+      limits:
+        cpu: 10m
+        memory: 80Mi
+      requests:
+        cpu: 10m
+        memory: 80Mi
+    securityContext: {}
+    clusterRole:
+      create: false
+  nodeRecovery:
+    enabled: false
+    image:
+      repository: public.ecr.aws/neuron/neuron-node-recovery
+      pullPolicy: IfNotPresent
+      tag: "1.2.0"
+    resources:
+      limits:
+        cpu: 10m
+        memory: 150Mi
+      requests:
+        cpu: 10m
+        memory: 150Mi
+
+  # Additional volumes on the output Deployment definition.
+  volumes:
+  - name: log-volume
+    hostPath:
+      path: /var/log
+      type: DirectoryOrCreate
+  # k8s equivalent of docker run --shm-size 50G
+  - name: dshm
+    emptyDir:
+      medium: Memory
+      sizeLimit: "50Gi"
+
+  # Additional volumeMounts on the output Deployment definition.
+  volumeMounts:
+  # container will write results to /var/log on the node
+  - name: log-volume
+    mountPath: /var/log
+  - name: dshm
+    mountPath: /dev/shm

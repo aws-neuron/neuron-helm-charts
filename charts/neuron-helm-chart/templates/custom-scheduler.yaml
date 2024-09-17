@@ -1,0 +1,168 @@
+{{- if and .Values.scheduler.enabled .Values.scheduler.customScheduler.enabled -}}
+{{- if .Values.scheduler.customScheduler.serviceAccount.create -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "neuron-scheduler.customScheduler.serviceAccountName" . }}
+  namespace: {{ include "neuron-scheduler.customScheduler.namespace" . }}
+  labels:
+    {{- include "neuron-scheduler.customScheduler.labels" . | nindent 4 }}
+  {{- with .Values.scheduler.customScheduler.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ include "neuron-scheduler.customScheduler.fullname" . }}
+  labels:
+    {{- include "neuron-scheduler.customScheduler.labels" . | nindent 4 }}
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["create", "get", "list", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "neuron-scheduler.customScheduler.fullname" . }}-as-kube-scheduler
+  namespace: {{ include "neuron-scheduler.customScheduler.namespace" . }}
+  labels:
+    {{- include "neuron-scheduler.customScheduler.labels" . | nindent 4 }}
+roleRef:
+  kind: ClusterRole
+  name: system:kube-scheduler
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: {{ include "neuron-scheduler.customScheduler.serviceAccountName" . }}
+  namespace: {{ include "neuron-scheduler.customScheduler.namespace" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "neuron-scheduler.customScheduler.fullname" . }}-as-volume-scheduler
+  namespace: {{ include "neuron-scheduler.customScheduler.namespace" . }}
+  labels:
+    {{- include "neuron-scheduler.customScheduler.labels" . | nindent 4 }}
+roleRef:
+  kind: ClusterRole
+  name: system:volume-scheduler
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: {{ include "neuron-scheduler.customScheduler.serviceAccountName" . }}
+  namespace: {{ include "neuron-scheduler.customScheduler.namespace" . }}
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ include "neuron-scheduler.customScheduler.fullname" . }}
+  namespace: {{ include "neuron-scheduler.customScheduler.namespace" . }}
+  labels:
+    {{- include "neuron-scheduler.customScheduler.labels" . | nindent 4 }}
+roleRef:
+  kind: ClusterRole
+  name: {{ include "neuron-scheduler.customScheduler.fullname" . }}
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: {{ include "neuron-scheduler.customScheduler.serviceAccountName" . }}
+  namespace: {{ include "neuron-scheduler.customScheduler.namespace" . }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "neuron-scheduler.customScheduler.configMapName" . }}
+  namespace: {{ include "neuron-scheduler.customScheduler.namespace" . }}
+data:
+  my-scheduler-config.yaml: |
+    apiVersion: kubescheduler.config.k8s.io/v1
+    kind: KubeSchedulerConfiguration
+    profiles:
+      - schedulerName: {{ include "neuron-scheduler.customScheduler.fullname" . }}
+    extenders:
+      - urlPrefix: 'http://k8s-neuron-scheduler.kube-system.svc.cluster.local:12345'
+        filterVerb: filter
+        bindVerb: bind
+        enableHTTPS: false
+        nodeCacheCapable: true
+        managedResources:
+          - name: 'aws.amazon.com/neuron'
+            ignoredByScheduler: false
+          - name: 'aws.amazon.com/neuroncore'
+            ignoredByScheduler: false
+          - name: 'aws.amazon.com/neurondevice'
+            ignoredByScheduler: false
+        ignorable: false
+    leaderElection:
+      leaderElect: true
+      resourceNamespace: {{ include "neuron-scheduler.customScheduler.namespace" . }}
+      resourceName: {{ include "neuron-scheduler.customScheduler.fullname" . }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "neuron-scheduler.customScheduler.fullname" . }}
+  namespace: {{ include "neuron-scheduler.customScheduler.namespace" . }}
+  labels:
+    {{- include "neuron-scheduler.customScheduler.labels" . | nindent 4 }}
+    tier: control-plane
+spec:
+  selector:
+    matchLabels:
+      {{- include "neuron-scheduler.customScheduler.selectorLabels" . | nindent 6 }}
+      tier: control-plane
+  replicas: {{ .Values.scheduler.customScheduler.replicaCount }}
+  template:
+    metadata:
+      labels:
+        {{- include "neuron-scheduler.customScheduler.templateLabels" . | nindent 8 }}
+        tier: control-plane
+        version: second
+    spec:
+      serviceAccountName: {{ include "neuron-scheduler.customScheduler.serviceAccountName" . }}
+      containers:
+      - args:
+        - --config={{ printf "/etc/kubernetes/%s/my-scheduler-config.yaml" (include "neuron-scheduler.customScheduler.fullname" .) }}
+        - --leader-elect=true
+        - --v=2
+        command:
+        - /usr/local/bin/kube-scheduler
+        name: kube-second-scheduler
+        image: {{ include "neuron-scheduler.customScheduler.fullimage" . }}
+        livenessProbe:
+          {{- toYaml .Values.scheduler.customScheduler.livenessProbe | nindent 10 }}
+        readinessProbe:
+          {{- toYaml .Values.scheduler.customScheduler.readinessProbe | nindent 10 }}
+        resources:
+          {{- toYaml .Values.scheduler.customScheduler.resources | nindent 10 }}
+        securityContext:
+          {{- toYaml .Values.scheduler.customScheduler.securityContext | nindent 10 }}
+        volumeMounts:
+          - name: config-volume
+            mountPath: {{ printf "/etc/kubernetes/%s" (include "neuron-scheduler.customScheduler.fullname" .) }}
+      hostNetwork: false
+      hostPID: false
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ include "neuron-scheduler.customScheduler.configMapName" . }}
+      {{- with .Values.scheduler.customScheduler.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.scheduler.customScheduler.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.scheduler.customScheduler.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

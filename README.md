@@ -1,11 +1,8 @@
-## My Project
+# Neuron Helm Charts
 
-TODO: Fill this README out!
+## Charts
 
-Be sure to:
-
-* Change the title in this README
-* Edit your repository description on GitHub
+[neuron-helm-chart](charts/neuron-helm-chart): A helm chart for all Neuron Kubernetes containers
 
 ## Security
 
@@ -14,4 +11,3 @@ See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more inform
 ## License
 
 This project is licensed under the Apache-2.0 License.
-

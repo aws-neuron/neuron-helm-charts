@@ -1,0 +1,49 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "neuron-device-plugin.fullname" . }}
+  labels:
+    {{- include "neuron-device-plugin.labels" . | nindent 4 }}
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["update", "patch", "get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["nodes/status"]
+  verbs: ["patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "neuron-device-plugin.fullname" . }}
+  namespace: {{ include "neuron-device-plugin.namespace" . }}
+  labels:
+    {{- include "neuron-device-plugin.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "neuron-device-plugin.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "neuron-device-plugin.serviceAccountName" . }}
+  namespace: {{ include "neuron-device-plugin.namespace" . }}
+---
+{{- if .Values.devicePlugin.serviceAccount.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "neuron-device-plugin.serviceAccountName" . }}
+  namespace: {{ include "neuron-device-plugin.namespace" . }}
+  {{- with .Values.devicePlugin.serviceAccount.annotations }}
+  annotations:
+    {{ toYaml . | indent 4 }}
+  {{- end }}
+  labels:
+    {{- include "neuron-device-plugin.labels" . | nindent 4 }}
+{{- end }}
