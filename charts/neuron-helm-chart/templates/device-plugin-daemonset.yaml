@@ -56,6 +56,10 @@ spec:
                   - key: {{ include "node.instanceTypeKey" . }}
                     operator: In
                     values: {{ .Values.neuronInstances | toYaml | nindent 22 }}
+                  - key: eks.amazonaws.com/compute-type
+                    operator: NotIn
+                    values:
+                    - auto
       containers:
       - image: {{ include "neuron-device-plugin.fullimage" . }}
         imagePullPolicy: {{ .Values.devicePlugin.image.pullPolicy }}
