@@ -91,13 +91,11 @@ data:
         filterVerb: filter
         bindVerb: bind
         enableHTTPS: false
-        nodeCacheCapable: true
+        nodeCacheCapable: false
         managedResources:
           - name: 'aws.amazon.com/neuron'
             ignoredByScheduler: false
           - name: 'aws.amazon.com/neuroncore'
-            ignoredByScheduler: false
-          - name: 'aws.amazon.com/neurondevice'
             ignoredByScheduler: false
         ignorable: false
     leaderElection:
@@ -136,6 +134,7 @@ spec:
         - /usr/local/bin/kube-scheduler
         name: kube-second-scheduler
         image: {{ include "neuron-scheduler.customScheduler.fullimage" . }}
+        imagePullPolicy: {{ .Values.scheduler.customScheduler.image.pullPolicy }}
         livenessProbe:
           {{- toYaml .Values.scheduler.customScheduler.livenessProbe | nindent 10 }}
         readinessProbe:

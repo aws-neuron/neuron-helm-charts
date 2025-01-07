@@ -1,4 +1,4 @@
-neuronInstances: [ trn1.2xlarge, trn1.32xlarge, trn1n.32xlarge, inf1.xlarge, inf1.2xlarge, inf1.6xlarge, inf1.24xlarge, inf2.xlarge, inf2.8xlarge, inf2.24xlarge, inf2.48xlarge, inf2e.32xlarge ]
+neuronInstances: [ trn1.2xlarge, trn1.32xlarge, trn1n.32xlarge, trn2.48xlarge, trn2u.48xlarge, inf1.xlarge, inf1.2xlarge, inf1.6xlarge, inf1.24xlarge, inf2.xlarge, inf2.8xlarge, inf2.24xlarge, inf2.48xlarge, ml.inf2.xlarge, ml.inf2.8xlarge, ml.inf2.24xlarge, ml.inf2.48xlarge, ml.trn1.2xlarge, ml.trn1.32xlarge, ml.trn1n.32xlarge ]
 
 devicePlugin:
   nameOverride: neuron-device-plugin
@@ -12,7 +12,7 @@ devicePlugin:
     repository: public.ecr.aws/neuron/neuron-device-plugin
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "2.22.4.0"
+    tag: "2.23.30.0"
   podSecurityContext: {}
   serviceAccount:
     # Specifies whether a service account should be created
@@ -33,13 +33,56 @@ devicePlugin:
   - key: aws.amazon.com/neuron
     operator: Exists
     effect: NoSchedule
+  - key: sagemaker.amazonaws.com/node-health-status
+    operator: Equal
+    value: Unschedulable
+    effect: NoSchedule
+  env:
+    - name: KUBECONFIG
+      value: /etc/kubernetes/kubelet.conf
+    - name: NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: "__INSTANCE_TYPE_KEY__"
+                operator: In
+                values: "__NEURON_INSTANCES__"
+              - key: eks.amazonaws.com/compute-type
+                operator: NotIn
+                values:
+                - fargate
+                - hybrid
+                - auto
+  volumeMounts:
+    - name: device-plugin
+      mountPath: /var/lib/kubelet/device-plugins
+    - name: infa-map
+      mountPath: /run
+    - name: aws-config
+      mountPath: /opt/aws
+      readOnly: true
+  volumes:
+    - name: device-plugin
+      hostPath:
+        path: /var/lib/kubelet/device-plugins
+    - name: infa-map
+      hostPath:
+        path: /run
+    - name: aws-config
+      hostPath:
+        path: /opt/aws
 
 scheduler:
   enabled: false
   image:
     repository: public.ecr.aws/neuron/neuron-scheduler
     pullPolicy: IfNotPresent
-    tag: "2.22.4.0"
+    tag: "2.23.30.0"
   imagePullSecrets: []
   nameOverride: neuron-scheduler
   namespaceOverride: kube-system
@@ -65,6 +108,9 @@ scheduler:
     operator: Exists
     key: node.cloudprovider.kubernetes.io/uninitialized
   affinity: {}
+  env:
+    - name: PORT
+      value: "12345"
   customScheduler:
     enabled: true
     nameOverride: ""
@@ -130,7 +176,7 @@ npd:
     image:
       repository: registry.k8s.io/node-problem-detector/node-problem-detector
       pullPolicy: IfNotPresent
-      tag: "v0.8.19"
+      tag: "v0.8.20"
     resources:
       limits:
         cpu: 10m
@@ -146,7 +192,7 @@ npd:
     image:
       repository: public.ecr.aws/neuron/neuron-node-recovery
       pullPolicy: IfNotPresent
-      tag: "1.2.0"
+      tag: "1.4.0"
     resources:
       limits:
         cpu: 10m
@@ -154,23 +200,3 @@ npd:
       requests:
         cpu: 10m
         memory: 150Mi
-
-  # Additional volumes on the output Deployment definition.
-  volumes:
-  - name: log-volume
-    hostPath:
-      path: /var/log
-      type: DirectoryOrCreate
-  # k8s equivalent of docker run --shm-size 50G
-  - name: dshm
-    emptyDir:
-      medium: Memory
-      sizeLimit: "50Gi"
-
-  # Additional volumeMounts on the output Deployment definition.
-  volumeMounts:
-  # container will write results to /var/log on the node
-  - name: log-volume
-    mountPath: /var/log
-  - name: dshm
-    mountPath: /dev/shm

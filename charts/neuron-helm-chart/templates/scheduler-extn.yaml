@@ -107,9 +107,11 @@ spec:
       containers:
         - name: {{ if .Values.scheduler.defaultScheduler.enabled }}neuron-scheduler{{ else }}neuron-scheduler-exp{{ end }}
           image: {{ include "neuron-scheduler.fullimage" . }}
+          imagePullPolicy: {{ .Values.scheduler.image.pullPolicy }}
+          {{- with .Values.scheduler.env }}
           env:
-          - name: PORT
-            value: "12345"
+            {{- toYaml . | nindent 10 }}
+          {{- end }}
 ---
 apiVersion: v1
 kind: Service

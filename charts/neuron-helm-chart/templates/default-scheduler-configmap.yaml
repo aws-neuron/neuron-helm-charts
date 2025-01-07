@@ -24,10 +24,6 @@ data:
               "ignoredByScheduler": false
             },
             {
-              "name": "aws.amazon.com/neurondevice",
-              "ignoredByScheduler": false
-            },
-            {
               "name": "aws.amazon.com/neuroncore",
               "ignoredByScheduler": false
             }

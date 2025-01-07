@@ -125,6 +125,18 @@ scheduler.alpha.kubernetes.io/critical-pod: ""
 {{- end -}}
 
 {{/*
+Affinity for Neuron Device Plugin daemonset.
+*/}}
+{{- define "neuron-device-plugin.affinity" -}}
+{{- $instanceTypeKey := (include "node.instanceTypeKey" .) -}}
+{{- $neuronInstances := $.Values.neuronInstances | toYaml | nindent 8 -}}
+{{- $affinityYaml := .Values.devicePlugin.affinity | toYaml | 
+     replace "__INSTANCE_TYPE_KEY__" $instanceTypeKey | 
+     replace "__NEURON_INSTANCES__" $neuronInstances -}}
+{{- tpl $affinityYaml $ -}}
+{{- end -}}
+
+{{/*
 Expand the name of the chart.
 */}}
 {{- define "neuron-scheduler.name" -}}
