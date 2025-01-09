@@ -45,12 +45,6 @@ data:
                 "condition": "NeuronHealth",
                 "reason": "NeuronHasError_DMA_ERROR",
                 "pattern": ".* NEURON_HW_ERR=DMA_ERROR .*"
-            },
-            {
-                "type": "permanent",
-                "condition": "NeuronHealth",
-                "reason": "NeuronHasError_HANG_ON_COLLECTIVES",
-                "pattern": ".* NEURON_HW_ERR=HANG_ON_COLLECTIVES .*"
             }
         ]
     }
