@@ -1,4 +1,13 @@
 {{- if .Values.npd.enabled }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "neuron-node-problem-detector-and-recovery.namespace" . }}
+  labels:
+    app: {{ include "neuron-node-problem-detector-and-recovery.fullname" . }}
+    {{- include "neuron-node-problem-detector-and-recovery.labels" . | nindent 4 }}
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
