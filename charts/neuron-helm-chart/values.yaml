@@ -200,3 +200,58 @@ npd:
       requests:
         cpu: 10m
         memory: 150Mi
+
+
+monitor:
+  enabled: true
+  # nameOverride: ""
+  # namespaceOverride: ""
+  fullnameOverride: neuron-monitor
+  exporter:
+    port: 8000
+    selectorLabelsOverride: {}
+    # priorityClassName: ""
+    # runtimeClassName: ""
+    imagePullSecrets: []
+    image:
+      repository: public.ecr.aws/neuron/neuron-monitor
+      pullPolicy: IfNotPresent
+      tag: "1.1.0"
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+      requests:
+        cpu: 256m
+        memory: 128Mi
+    podSecurityContext: {}
+    updateStrategy:
+      type: RollingUpdate
+    podAnnotations: {}
+    securityContext:
+      privileged: true
+    nodeSelector: {} # monitor is matched with affinity
+    tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+    - key: aws.amazon.com/neuron
+      operator: Exists
+      effect: NoSchedule
+    env:
+    - name: GOMEMLIMIT
+      value: 160MiB
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: "__INSTANCE_TYPE_KEY__"
+                  operator: In
+                  values: "__NEURON_INSTANCES__"
+  prometheusPodMonitor:
+    enabled: true
+    prometheusSelectorLabels:
+      release: kube-prometheus-stack
+      jobLabel: neuron-monitor
+    neuronEndpointConfig:
+      interval: "10s"

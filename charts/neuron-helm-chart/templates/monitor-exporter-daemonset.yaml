@@ -1,0 +1,70 @@
+{{- if .Values.monitor.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "monitor.fullname" . }}
+  namespace: {{ include "monitor.namespace" .  }}
+  labels:
+    {{- include "monitor.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "monitor.exporter.selectorLabels" . | nindent 6 }}
+  {{- with .Values.monitor.exporter.updateStrategy }}
+  updateStrategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      {{- with .Values.monitor.exporter.podAnnotations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "monitor.exporter.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.monitor.exporter.affinity }}
+      affinity:
+        {{- include "monitor.exporter.affinity" $ | nindent 8 }}
+      {{- end }}
+      {{- with .Values.monitor.exporter.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.monitor.exporter.priorityClassName }}
+      priorityClassName: {{ .Values.monitor.exporter.priorityClassName }}
+      {{- end }}
+      {{- if .Values.monitor.exporter.runtimeClassName }}
+      runtimeClassName: {{ .Values.monitor.exporter.runtimeClassName }}
+      {{- end }}
+      {{- with .Values.monitor.exporter.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.monitor.exporter.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.monitor.exporter.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: neuron-monitor
+          image: {{ include "monitor.exporter.fullimage" . }}
+          imagePullPolicy: {{ .Values.monitor.exporter.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.monitor.exporter.port }}
+              name: {{ include "monitor.exporter.portName" . }}
+          command:
+             - "/opt/bin/entrypoint.sh"
+          args: 
+            - "--port"
+            - "{{ .Values.monitor.exporter.port }}"  
+          resources:
+            {{- toYaml .Values.monitor.exporter.resources | nindent 12 }}
+          env:
+            {{- toYaml .Values.monitor.exporter.env | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.monitor.exporter.securityContext | nindent 12 }}
+{{- end }}

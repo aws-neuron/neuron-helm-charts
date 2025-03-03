@@ -1,0 +1,22 @@
+{{- if .Values.monitor.prometheusPodMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: neuron-monitor
+  name: {{ include "monitor.fullname" . }}
+  namespace: {{ include "monitor.namespace" .  }}
+  labels:
+    {{- include "monitor.labels" . | nindent 4 }}
+    {{- if .Values.monitor.prometheusPodMonitor.prometheusSelectorLabels }}
+    {{- toYaml .Values.monitor.prometheusPodMonitor.prometheusSelectorLabels | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "monitor.exporter.selectorLabels" . | nindent 6 }}
+  podMetricsEndpoints:
+  - port: {{ include "monitor.exporter.portName" . }}
+    {{- if .Values.monitor.prometheusPodMonitor.neuronEndpointConfig }}
+    {{- toYaml .Values.monitor.prometheusPodMonitor.neuronEndpointConfig | nindent 4 }}
+    {{- end }}
+{{- end }}

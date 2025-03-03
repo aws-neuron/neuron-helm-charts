@@ -429,3 +429,116 @@ privileged: true
   {{- end }}
 {{- end }}
 {{- end -}}
+
+
+
+
+
+{{/*
+Templates for monitor.
+*/}}
+
+{{/*
+Expand the name of the chart.
+*/}}
+{{- define "monitor.name" -}}
+{{- default .Chart.Name .Values.monitor.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Create a default fully qualified app name.
+We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
+If release name contains chart name it will be used as a full name.
+Name for Neuron Monitor.
+*/}}
+{{- define "monitor.fullname" -}}
+{{- if .Values.monitor.fullnameOverride -}}
+{{- .Values.monitor.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $name := default .Chart.Name .Values.monitor.nameOverride -}}
+{{- if contains $name .Release.Name -}}
+{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Expand the namespace of the chart.
+*/}}
+{{- define "monitor.namespace" -}}
+{{- default .Release.Namespace .Values.monitor.namespaceOverride | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Common labels for Neuron Monitor
+*/}}
+{{- define "monitor.labels" -}}
+helm.sh/chart: {{ include "neuron-helm-chart.chart" . }}
+{{ include "monitor.exporter.templateLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end -}}
+
+{{/*
+Template labels for Neuron Monitor
+*/}}
+{{- define "monitor.exporter.templateLabels" -}}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- if .Values.monitor.selectorLabelsOverride }}
+{{ toYaml .Values.monitor.selectorLabelsOverride }}
+{{- end }}
+{{- end }}
+
+{{/*
+Selector labels for Neuron Monitor
+*/}}
+{{- define "monitor.exporter.selectorLabels" -}}
+{{- if .Values.monitor.exporter.selectorLabelsOverride -}}
+{{ toYaml .Values.monitor.exporter.selectorLabelsOverride }}
+{{- else -}}
+app.kubernetes.io/name: {{ include "monitor.name" . }}-exporter
+{{ include "monitor.exporter.templateLabels" . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Affinity for Neuron Monitor daemonset.
+*/}}
+{{- define "monitor.exporter.affinity" -}}
+{{- $instanceTypeKey := (include "node.instanceTypeKey" .) -}}
+{{- $neuronInstances := $.Values.neuronInstances | toYaml | nindent 8 -}}
+{{- $affinityYaml := .Values.monitor.exporter.affinity | toYaml | 
+     replace "__INSTANCE_TYPE_KEY__" $instanceTypeKey | 
+     replace "__NEURON_INSTANCES__" $neuronInstances -}}
+{{- tpl $affinityYaml $ -}}
+{{- end -}}
+
+{{- define "monitor.exporter.podAnnotations" -}}
+{{- if .Values.devicePlugin.podAnnotations }}
+  {{- range $key, $value := .Values.devicePlugin.podAnnotations }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+{{- end }}
+{{- if semverCompare "<=1.13-0" .Capabilities.KubeVersion.Version -}}
+scheduler.alpha.kubernetes.io/critical-pod: ""
+{{- end -}}
+{{- end -}}
+
+{{/*
+Neuron monitor image to use
+*/}}
+{{- define "monitor.exporter.fullimage" -}}
+{{- printf "%s:%s" .Values.monitor.exporter.image.repository (.Values.monitor.exporter.image.tag | default "{{ .Chart.AppVersion }}") -}}
+{{- end -}}
+
+
+{{/*
+Neuron monitor port name
+*/}}
+{{- define "monitor.exporter.portName" -}}
+"neuron-monitor"
+{{- end -}}
