@@ -67,7 +67,7 @@ helm upgrade --install neuron-helm-chart oci://public.ecr.aws/neuron/neuron-helm
 ```
 
 ### Neuron Monitor and Prometheus PodMonitor
-The Neuron Monitor is not enabled by default.
+The Neuron Monitor is enabled by default.
 
 Configure `prometheusPodMonitor.prometheusSelectorLabels` in `Values.yaml` based on labels needed for your prometheus operator to detect PodMonitor.
 To install the Neuron Node Problem Detector Plugin:
