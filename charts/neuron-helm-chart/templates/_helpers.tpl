@@ -229,6 +229,38 @@ Config map name of the neuron scheduler
 {{- end }}
 
 {{/*
+Tolerations for neuron scheduler
+*/}}
+{{- define "neuron-scheduler.tolerations" -}}
+{{- $tolerations := list }}
+{{- if .Values.scheduler.tolerations }}
+{{- $tolerations = concat $tolerations .Values.scheduler.tolerations }}
+{{- end }}
+{{- if and .Values.scheduler.defaultScheduler.enabled .Values.scheduler.defaultScheduler.tolerations }}
+{{- $tolerations = concat $tolerations .Values.scheduler.defaultScheduler.tolerations }}
+{{- end }}
+{{- if not (empty $tolerations) }}
+{{- toYaml $tolerations }}
+{{- end }}
+{{- end }}
+
+{{/*
+Node selector for neuron scheduler
+*/}}
+{{- define "neuron-scheduler.nodeSelector" -}}
+{{- $nodeSelector := dict }}
+{{- if .Values.scheduler.nodeSelector }}
+{{- $nodeSelector = mergeOverwrite $nodeSelector .Values.scheduler.nodeSelector }}
+{{- end }}
+{{- if and .Values.scheduler.defaultScheduler.enabled .Values.scheduler.defaultScheduler.nodeSelector }}
+{{- $nodeSelector = mergeOverwrite $nodeSelector .Values.scheduler.defaultScheduler.nodeSelector }}
+{{- end }}
+{{- if not (empty $nodeSelector) }}
+{{- toYaml $nodeSelector }}
+{{- end }}
+{{- end }}
+
+{{/*
 Expand the name of the chart.
 */}}
 {{- define "neuron-scheduler.customScheduler.name" -}}
@@ -365,6 +397,13 @@ Node Recovery image to use
 {{- define "neuron-node-problem-detector-and-recovery.nodeRecovery.fullimage" -}}
 {{- printf "%s:%s" .Values.npd.nodeRecovery.image.repository .Values.npd.nodeRecovery.image.tag -}}
 {{- end -}}
+
+{{/*
+Node recovery image counters passed as arguments to script 
+*/}}
+{{- define "neuron-node-problem-detector-and-recovery.nodeRecovery.counters" -}}
+{{- join " " .Values.npd.nodeRecovery.counters -}}
+{{- end }}
 
 {{/*
 Common labels

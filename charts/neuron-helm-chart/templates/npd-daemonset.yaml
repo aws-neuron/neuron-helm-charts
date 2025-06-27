@@ -98,7 +98,7 @@ spec:
         command:
         - /bin/sh
         - -c
-        - "sleep 60 && /scripts/check-health.py"
+        - "sleep 60 && /scripts/check-health.py --counters {{ include "neuron-node-problem-detector-and-recovery.nodeRecovery.counters" . }}"
         image: {{ include "neuron-node-problem-detector-and-recovery.nodeRecovery.fullimage" . }}
         resources:
           limits:

@@ -98,15 +98,8 @@ scheduler:
   podAnnotations: {}
   podSecurityContext: {}
   securityContext: {}
-  nodeSelector:
-    node-role.kubernetes.io/master: ""
-  tolerations:
-  - effect: NoSchedule
-    operator: Exists
-    key: node-role.kubernetes.io/master
-  - effect: NoSchedule
-    operator: Exists
-    key: node.cloudprovider.kubernetes.io/uninitialized
+  nodeSelector: {}
+  tolerations: []
   affinity: {}
   env:
     - name: PORT
@@ -146,6 +139,15 @@ scheduler:
     affinity: {}
   defaultScheduler:
     enabled: false
+    nodeSelector:
+      node-role.kubernetes.io/master: ""
+    tolerations:
+    - effect: NoSchedule
+      operator: Exists
+      key: node-role.kubernetes.io/master
+    - effect: NoSchedule
+      operator: Exists
+      key: node.cloudprovider.kubernetes.io/uninitialized
 
 npd:
   enabled: true
@@ -153,6 +155,47 @@ npd:
     type: RollingUpdate
   config:
     name: node-problem-detector-config
+    kernelMonitor: |
+      {
+          "plugin": "kmsg",
+          "logPath": "/dev/kmsg",
+          "lookback": "5m",
+          "bufferSize": 10,
+          "source": "kernel-monitor",
+          "conditions": [
+              {
+                  "type": "NeuronHealth",
+                  "reason": "NeuronHasNoError",
+                  "message": "Neuron has no error"
+              }
+          ],
+          "rules": [
+              {
+                  "type": "permanent",
+                  "condition": "NeuronHealth",
+                  "reason": "NeuronHasError_SRAM_UNCORRECTABLE_ERROR",
+                  "pattern": ".* NEURON_HW_ERR=SRAM_UNCORRECTABLE_ERROR .*"
+              },
+              {
+                  "type": "permanent",
+                  "condition": "NeuronHealth",
+                  "reason": "NeuronHasError_NC_UNCORRECTABLE_ERROR",
+                  "pattern": ".* NEURON_HW_ERR=NC_UNCORRECTABLE_ERROR .*"
+              },
+              {
+                  "type": "permanent",
+                  "condition": "NeuronHealth",
+                  "reason": "NeuronHasError_HBM_UNCORRECTABLE_ERROR",
+                  "pattern": ".* NEURON_HW_ERR=HBM_UNCORRECTABLE_ERROR .*"
+              },
+              {
+                  "type": "permanent",
+                  "condition": "NeuronHealth",
+                  "reason": "NeuronHasError_DMA_ERROR",
+                  "pattern": ".* NEURON_HW_ERR=DMA_ERROR .*"
+              }
+          ]
+      }
   imagePullSecrets: []
   nameOverride: node-problem-detector
   namespaceOverride: neuron-healthcheck-system
@@ -192,7 +235,7 @@ npd:
     image:
       repository: public.ecr.aws/neuron/neuron-node-recovery
       pullPolicy: IfNotPresent
-      tag: "1.4.0"
+      tag: "1.5.0"
     resources:
       limits:
         cpu: 10m
@@ -200,3 +243,8 @@ npd:
       requests:
         cpu: 10m
         memory: 150Mi
+    counters:
+      - NeuronHasError_DMA_ERROR
+      - NeuronHasError_HBM_UNCORRECTABLE_ERROR
+      - NeuronHasError_SRAM_UNCORRECTABLE_ERROR
+      - NeuronHasError_NC_UNCORRECTABLE_ERROR
