@@ -91,19 +91,24 @@ spec:
       {{- if .Values.scheduler.priorityClassName }}
       priorityClassName: {{ .Values.scheduler.priorityClassName }}
       {{- end }}
-    {{- if .Values.scheduler.defaultScheduler.enabled }}
+      {{- if .Values.scheduler.defaultScheduler.enabled }}
       hostNetwork: true
-      {{- with .Values.scheduler.tolerations }}
-      tolerations:
+      {{- end }}
+      {{- with (include "neuron-scheduler.tolerations" .) }}
+      tolerations: 
+        {{- nindent 8 . }}
+      {{- end }}
+      {{- with include "neuron-scheduler.nodeSelector" . | fromYaml }}
+      nodeSelector: 
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.scheduler.nodeSelector }}
-      nodeSelector:
+      {{- with .Values.scheduler.affinity }}
+      affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-    {{- else }}
+      {{- if .Values.scheduler.customScheduler.enabled }}
       schedulerName: {{ include "neuron-scheduler.customScheduler.fullname" . }}
-    {{- end }}
+      {{- end }}
       containers:
         - name: {{ if .Values.scheduler.defaultScheduler.enabled }}neuron-scheduler{{ else }}neuron-scheduler-exp{{ end }}
           image: {{ include "neuron-scheduler.fullimage" . }}
