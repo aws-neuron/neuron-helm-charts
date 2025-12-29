@@ -130,6 +130,9 @@ spec:
         - --config={{ printf "/etc/kubernetes/%s/my-scheduler-config.yaml" (include "neuron-scheduler.customScheduler.fullname" .) }}
         - --leader-elect=true
         - --v=2
+        {{- with .Values.scheduler.customScheduler.extraArgs }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         command:
         - /usr/local/bin/kube-scheduler
         name: kube-second-scheduler
