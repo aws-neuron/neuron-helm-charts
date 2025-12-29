@@ -1,4 +1,29 @@
-neuronInstances: [ trn1.2xlarge, trn1.32xlarge, trn1n.32xlarge, trn2.48xlarge, trn2u.48xlarge, inf1.xlarge, inf1.2xlarge, inf1.6xlarge, inf1.24xlarge, inf2.xlarge, inf2.8xlarge, inf2.24xlarge, inf2.48xlarge, ml.inf2.xlarge, ml.inf2.8xlarge, ml.inf2.24xlarge, ml.inf2.48xlarge, ml.trn1.2xlarge, ml.trn1.32xlarge, ml.trn1n.32xlarge ]
+neuronInstances:
+  [
+    trn1.2xlarge,
+    trn1.32xlarge,
+    trn1n.32xlarge,
+    trn2.3xlarge,
+    trn2.48xlarge,
+    trn2u.48xlarge,
+    trn3.48xlarge,
+    trn3e.24xlarge,
+    inf1.xlarge,
+    inf1.2xlarge,
+    inf1.6xlarge,
+    inf1.24xlarge,
+    inf2.xlarge,
+    inf2.8xlarge,
+    inf2.24xlarge,
+    inf2.48xlarge,
+    ml.inf2.xlarge,
+    ml.inf2.8xlarge,
+    ml.inf2.24xlarge,
+    ml.inf2.48xlarge,
+    ml.trn1.2xlarge,
+    ml.trn1.32xlarge,
+    ml.trn1n.32xlarge,
+  ]
 
 devicePlugin:
   nameOverride: neuron-device-plugin
@@ -12,7 +37,7 @@ devicePlugin:
     repository: public.ecr.aws/neuron/neuron-device-plugin
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "2.28.27.0"
+    tag: "2.29.16.0"
   podSecurityContext: {}
   serviceAccount:
     # Specifies whether a service account should be created
@@ -26,17 +51,18 @@ devicePlugin:
     type: RollingUpdate
   podAnnotations: {}
   securityContext: {}
+  resources: {}
   nodeSelector: {}
   tolerations:
-  - key: CriticalAddonsOnly
-    operator: Exists
-  - key: aws.amazon.com/neuron
-    operator: Exists
-    effect: NoSchedule
-  - key: sagemaker.amazonaws.com/node-health-status
-    operator: Equal
-    value: Unschedulable
-    effect: NoSchedule
+    - key: CriticalAddonsOnly
+      operator: Exists
+    - key: aws.amazon.com/neuron
+      operator: Exists
+      effect: NoSchedule
+    - key: sagemaker.amazonaws.com/node-health-status
+      operator: Equal
+      value: Unschedulable
+      effect: NoSchedule
   env:
     - name: KUBECONFIG
       value: /etc/kubernetes/kubelet.conf
@@ -55,9 +81,9 @@ devicePlugin:
               - key: eks.amazonaws.com/compute-type
                 operator: NotIn
                 values:
-                - fargate
-                - hybrid
-                - auto
+                  - fargate
+                  - hybrid
+                  - auto
   volumeMounts:
     - name: device-plugin
       mountPath: /var/lib/kubelet/device-plugins
@@ -82,7 +108,7 @@ scheduler:
   image:
     repository: public.ecr.aws/neuron/neuron-scheduler
     pullPolicy: IfNotPresent
-    tag: "2.28.27.0"
+    tag: "2.29.16.0"
   imagePullSecrets: []
   nameOverride: neuron-scheduler
   namespaceOverride: kube-system
@@ -104,15 +130,17 @@ scheduler:
   env:
     - name: PORT
       value: "12345"
+  resources: {}
   customScheduler:
     enabled: true
     nameOverride: ""
     namespaceOverride: kube-system
     fullnameOverride: my-scheduler
+    extraArgs: []
     image:
       repository: public.ecr.aws/eks-distro/kubernetes/kube-scheduler
       pullPolicy: IfNotPresent
-      tag: "v1.28.5-eks-1-28-latest"
+      tag: "v1.31.12-eks-1-31-30"
     replicaCount: 1
     serviceAccount:
       create: true
@@ -131,7 +159,7 @@ scheduler:
         scheme: HTTPS
     resources:
       requests:
-        cpu: '0.1'
+        cpu: "0.1"
     securityContext:
       privileged: false
     nodeSelector: {}
@@ -142,12 +170,12 @@ scheduler:
     nodeSelector:
       node-role.kubernetes.io/master: ""
     tolerations:
-    - effect: NoSchedule
-      operator: Exists
-      key: node-role.kubernetes.io/master
-    - effect: NoSchedule
-      operator: Exists
-      key: node.cloudprovider.kubernetes.io/uninitialized
+      - effect: NoSchedule
+        operator: Exists
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        operator: Exists
+        key: node.cloudprovider.kubernetes.io/uninitialized
 
 npd:
   enabled: true
@@ -211,15 +239,46 @@ npd:
   runtimeClassName: ""
   nodeSelector: {}
   tolerations:
-  - effect: NoSchedule
-    operator: Exists
-  - effect: NoExecute
-    operator: Exists
+    - effect: NoSchedule
+      operator: Exists
+    - effect: NoExecute
+      operator: Exists
   nodeProblemDetector:
     image:
       repository: registry.k8s.io/node-problem-detector/node-problem-detector
       pullPolicy: IfNotPresent
-      tag: "v0.8.21"
+      tag: "v1.35.1"
+      command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Starting NPD with periodic FD health check (every 5s)..."
+          
+          # Start NPD in background
+          /node-problem-detector \
+            --logtostderr \
+            --config.system-log-monitor=/config/kernel-monitor.json 2>&1 &
+          
+          NPD_PID=$!
+          echo "NPD started with PID: $NPD_PID"
+          
+          # Periodic health check loop
+          while true; do
+            sleep 5
+          
+            # Check if NPD process is still running
+            if ! kill -0 $NPD_PID 2>/dev/null; then
+              echo "NPD process died, exiting..."
+              exit 1
+            fi
+          
+            # Check if NPD still has /dev/kmsg file descriptor open
+            if ! ls -l /proc/$NPD_PID/fd/ 2>/dev/null | grep -q "/dev/kmsg"; then
+              echo "FATAL: NPD no longer has /dev/kmsg FD open, exiting..."
+              kill -9 $NPD_PID
+              exit 1
+            fi
+          done
     resources:
       limits:
         cpu: 10m
@@ -235,7 +294,7 @@ npd:
     image:
       repository: public.ecr.aws/neuron/neuron-node-recovery
       pullPolicy: IfNotPresent
-      tag: "1.6.0"
+      tag: "1.7.0"
     resources:
       limits:
         cpu: 10m

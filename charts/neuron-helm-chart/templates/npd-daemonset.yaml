@@ -59,10 +59,7 @@ spec:
                     values: {{ .Values.neuronInstances | toYaml | nindent 22 }}
       containers:
       - name: node-problem-detector
-        command:
-        - /node-problem-detector
-        - --logtostderr
-        - --config.system-log-monitor=/config/kernel-monitor.json
+        command: {{ toYaml .Values.npd.nodeProblemDetector.image.command | nindent 10}}
         image: {{ include "neuron-node-problem-detector-and-recovery.nodeProblemDetector.fullimage" . }}
         ports:
         - containerPort: 20257

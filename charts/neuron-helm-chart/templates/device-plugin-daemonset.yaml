@@ -62,6 +62,10 @@ spec:
         {{- end }}
         securityContext:
           {{- include "neuron-device-plugin.securityContext" . | nindent 10 }}
+        {{- with .Values.devicePlugin.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         {{- with .Values.devicePlugin.volumeMounts }}
         volumeMounts:
           {{- toYaml . | nindent 10 }}
