@@ -1,0 +1,58 @@
+{{- if .Values.draDriver.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "neuron-dra-driver.name" . }}-clusterrole
+  labels:
+    {{- include "neuron-dra-driver.labels" . | nindent 4 }}
+rules:
+  # Required for DRA device plugin to manage ResourceSlices
+  - apiGroups: ["resource.k8s.io"]
+    resources: ["resourceslices"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Required for DRA device plugin to read ResourceClaims
+  - apiGroups: ["resource.k8s.io"]
+    resources: ["resourceclaims"]
+    verbs: ["get", "list", "watch"]
+  # Required for DRA device plugin to read DeviceClasses
+  - apiGroups: ["resource.k8s.io"]
+    resources: ["deviceclasses"]
+    verbs: ["get", "list", "watch"]
+  # Required to read and modify node information
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  # Required to modify node status
+  - apiGroups: [""]
+    resources: ["nodes/status"]
+    verbs: ["patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "neuron-dra-driver.name" . }}-binding
+  labels:
+    {{- include "neuron-dra-driver.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "neuron-dra-driver.name" . }}-clusterrole
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "neuron-dra-driver.serviceAccountName" . }}
+    namespace: {{ include "neuron-dra-driver.namespace" . }}
+---
+{{- if .Values.draDriver.serviceAccount.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "neuron-dra-driver.serviceAccountName" . }}
+  namespace: {{ include "neuron-dra-driver.namespace" . }}
+  labels:
+    {{- include "neuron-dra-driver.labels" . | nindent 4 }}
+  {{- with .Values.draDriver.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}

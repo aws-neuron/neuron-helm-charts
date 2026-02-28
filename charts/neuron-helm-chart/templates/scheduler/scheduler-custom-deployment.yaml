@@ -1,0 +1,66 @@
+{{- if and .Values.scheduler.enabled .Values.scheduler.customScheduler.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "neuron-scheduler.customScheduler.fullname" . }}
+  namespace: {{ include "neuron-scheduler.customScheduler.namespace" . }}
+  labels:
+    {{- include "neuron-scheduler.customScheduler.labels" . | nindent 4 }}
+    tier: control-plane
+spec:
+  selector:
+    matchLabels:
+      {{- include "neuron-scheduler.customScheduler.selectorLabels" . | nindent 6 }}
+      tier: control-plane
+  replicas: {{ .Values.scheduler.customScheduler.replicaCount }}
+  template:
+    metadata:
+      labels:
+        {{- include "neuron-scheduler.customScheduler.templateLabels" . | nindent 8 }}
+        tier: control-plane
+        version: second
+    spec:
+      serviceAccountName: {{ include "neuron-scheduler.customScheduler.serviceAccountName" . }}
+      containers:
+      - args:
+        - --config={{ printf "/etc/kubernetes/%s/my-scheduler-config.yaml" (include "neuron-scheduler.customScheduler.fullname" .) }}
+        - --leader-elect=true
+        - --v=2
+        {{- with .Values.scheduler.customScheduler.extraArgs }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        command:
+        - /usr/local/bin/kube-scheduler
+        name: kube-second-scheduler
+        image: {{ include "neuron-scheduler.customScheduler.fullimage" . }}
+        imagePullPolicy: {{ .Values.scheduler.customScheduler.image.pullPolicy }}
+        livenessProbe:
+          {{- toYaml .Values.scheduler.customScheduler.livenessProbe | nindent 10 }}
+        readinessProbe:
+          {{- toYaml .Values.scheduler.customScheduler.readinessProbe | nindent 10 }}
+        resources:
+          {{- toYaml .Values.scheduler.customScheduler.resources | nindent 10 }}
+        securityContext:
+          {{- toYaml .Values.scheduler.customScheduler.securityContext | nindent 10 }}
+        volumeMounts:
+          - name: config-volume
+            mountPath: {{ printf "/etc/kubernetes/%s" (include "neuron-scheduler.customScheduler.fullname" .) }}
+      hostNetwork: false
+      hostPID: false
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ include "neuron-scheduler.customScheduler.configMapName" . }}
+      {{- with .Values.scheduler.customScheduler.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.scheduler.customScheduler.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.scheduler.customScheduler.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

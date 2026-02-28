@@ -10,11 +10,150 @@ Return the appropriate instance type key label for node.
 {{- end -}}
 
 {{/*
+Validate configuration
+*/}}
+{{- define "neuron-helm-chart.validateConfig" -}}
+{{- if .Values.draDriver.enabled -}}
+  {{- if .Values.devicePlugin.enabled -}}
+    {{- fail "DRA driver and device plugin cannot both be enabled. Please set either draDriver.enabled=false or devicePlugin.enabled=false" -}}
+  {{- end -}}
+  {{- if .Values.scheduler.enabled -}}
+    {{- fail "DRA driver and scheduler cannot both be enabled. Please set either draDriver.enabled=false or scheduler.enabled=false" -}}
+  {{- end -}}
+{{- end -}}
+{{- if and .Values.scheduler.enabled (not .Values.devicePlugin.enabled) -}}
+  {{- fail "Scheduler requires device plugin to be enabled. Please set devicePlugin.enabled=true or disable the scheduler" -}}
+{{- end -}}
+{{- if and .Values.scheduler.enabled .Values.scheduler.customScheduler.enabled .Values.scheduler.defaultScheduler.enabled -}}
+  {{- fail "Scheduler customScheduler and defaultScheduler cannot both be enabled. Please enable only one" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Create chart name and version as used by the chart label.
 */}}
 {{- define "neuron-helm-chart.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
+
+{{/*
+Expand the name of the chart.
+*/}}
+{{- define "neuron-dra-driver.name" -}}
+{{- default .Chart.Name .Values.draDriver.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Expand the namespace of the chart.
+*/}}
+{{- define "neuron-dra-driver.namespace" -}}
+{{- default .Release.Namespace .Values.draDriver.namespaceOverride | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Create a default fully qualified app name.
+We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
+If release name contains chart name it will be used as a full name.
+*/}}
+{{- define "neuron-dra-driver.fullname" -}}
+{{- if .Values.draDriver.fullnameOverride -}}
+{{- .Values.draDriver.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $name := default .Chart.Name .Values.draDriver.nameOverride -}}
+{{- if contains $name .Release.Name -}}
+{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Create the name of the service account to use
+*/}}
+{{- define "neuron-dra-driver.serviceAccountName" -}}
+{{- if .Values.draDriver.serviceAccount.create -}}
+{{ default (include "neuron-dra-driver.fullname" .) .Values.draDriver.serviceAccount.name }}
+{{- else -}}
+{{ default "default" .Values.draDriver.serviceAccount.name }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Neuron DRA Driver image to use
+*/}}
+{{- define "neuron-dra-driver.fullimage" -}}
+{{- printf "%s:%s" .Values.draDriver.image.repository .Values.draDriver.image.tag -}}
+{{- end -}}
+
+{{/*
+Common labels
+*/}}
+{{- define "neuron-dra-driver.labels" -}}
+helm.sh/chart: {{ include "neuron-helm-chart.chart" . }}
+{{ include "neuron-dra-driver.templateLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end -}}
+
+{{/*
+Template labels
+*/}}
+{{- define "neuron-dra-driver.templateLabels" -}}
+app.kubernetes.io/name: {{ include "neuron-dra-driver.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- if .Values.draDriver.selectorLabelsOverride }}
+{{ toYaml .Values.draDriver.selectorLabelsOverride }}
+{{- end }}
+{{- end }}
+
+{{/*
+Selector labels
+*/}}
+{{- define "neuron-dra-driver.selectorLabels" -}}
+{{- if .Values.draDriver.selectorLabelsOverride -}}
+{{ toYaml .Values.draDriver.selectorLabelsOverride }}
+{{- else -}}
+{{ include "neuron-dra-driver.templateLabels" . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Security context for Neuron DRA Driver
+*/}}
+{{- define "neuron-dra-driver.securityContext" -}}
+{{- if ne (len .Values.draDriver.securityContext) 0 -}}
+{{ toYaml .Values.draDriver.securityContext }}
+{{- end -}}
+{{- end -}}
+
+{{- define "neuron-dra-driver.podAnnotations" -}}
+{{- if .Values.draDriver.podAnnotations }}
+  {{- range $key, $value := .Values.draDriver.podAnnotations }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Affinity for Neuron DRA Driver daemonset.
+*/}}
+{{- define "neuron-dra-driver.affinity" -}}
+{{- $instanceTypeKey := (include "node.instanceTypeKey" .) -}}
+{{- $filteredInstances := list -}}
+{{- range $.Values.neuronInstances -}}
+  {{- if not (or (hasPrefix "inf" .) (hasPrefix "ml.inf" .)) -}}
+    {{- $filteredInstances = append $filteredInstances . -}}
+  {{- end -}}
+{{- end -}}
+{{- $neuronInstances := $filteredInstances | toYaml | nindent 8 -}}
+{{- $affinityYaml := .Values.draDriver.affinity | toYaml | 
+     replace "__INSTANCE_TYPE_KEY__" $instanceTypeKey | 
+     replace "__NEURON_INSTANCES__" $neuronInstances -}}
+{{- tpl $affinityYaml $ -}}
+{{- end -}}
 
 {{/*
 Expand the name of the chart.

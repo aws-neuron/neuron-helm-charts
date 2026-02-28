@@ -1,31 +1,105 @@
-neuronInstances:
-  [
-    trn1.2xlarge,
-    trn1.32xlarge,
-    trn1n.32xlarge,
-    trn2.3xlarge,
-    trn2.48xlarge,
-    trn2u.48xlarge,
-    trn3.48xlarge,
-    trn3e.24xlarge,
-    inf1.xlarge,
-    inf1.2xlarge,
-    inf1.6xlarge,
-    inf1.24xlarge,
-    inf2.xlarge,
-    inf2.8xlarge,
-    inf2.24xlarge,
-    inf2.48xlarge,
-    ml.inf2.xlarge,
-    ml.inf2.8xlarge,
-    ml.inf2.24xlarge,
-    ml.inf2.48xlarge,
-    ml.trn1.2xlarge,
-    ml.trn1.32xlarge,
-    ml.trn1n.32xlarge,
-  ]
-
+neuronInstances: [trn1.2xlarge, trn1.32xlarge, trn1n.32xlarge, trn2.3xlarge, trn2.48xlarge, trn2u.48xlarge, trn3.48xlarge, trn3e.24xlarge, inf1.xlarge, inf1.2xlarge, inf1.6xlarge, inf1.24xlarge, inf2.xlarge, inf2.8xlarge, inf2.24xlarge, inf2.48xlarge, ml.inf2.xlarge, ml.inf2.8xlarge, ml.inf2.24xlarge, ml.inf2.48xlarge, ml.trn1.2xlarge, ml.trn1.32xlarge, ml.trn1n.32xlarge]
+draDriver:
+  enabled: false
+  nameOverride: neuron-dra-driver
+  namespaceOverride: neuron-dra-driver
+  fullnameOverride: neuron-dra-driver-kubelet-plugin
+  selectorLabelsOverride: {}
+  priorityClassName: null
+  runtimeClassName: null
+  imagePullSecrets: []
+  image:
+    repository: public.ecr.aws/neuron/neuron-dra-driver
+    pullPolicy: IfNotPresent
+    tag: "1.0.0"
+  podSecurityContext: {}
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: neuron-dra-driver-sa
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  podAnnotations: {}
+  securityContext: {}
+  resources:
+    limits:
+      cpu: 20m
+      memory: 256Mi
+    requests:
+      cpu: 10m
+      memory: 128Mi
+  nodeSelector: {}
+  tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+    - key: aws.amazon.com/neuron
+      operator: Exists
+      effect: NoSchedule
+    - key: sagemaker.amazonaws.com/node-health-status
+      operator: Equal
+      value: Unschedulable
+      effect: NoSchedule
+  env:
+    - name: NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+    - name: POD_UID
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.uid
+    - name: CDI_ROOT
+      value: "/var/run/cdi"
+    - name: KUBELET_REGISTRAR_DIRECTORY_PATH
+      value: "/var/lib/kubelet/plugins_registry"
+    - name: KUBELET_PLUGINS_DIRECTORY_PATH
+      value: "/var/lib/kubelet/plugins"
+    - name: HEALTHCHECK_PORT
+      value: "51515"
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: "__INSTANCE_TYPE_KEY__"
+                operator: In
+                values: "__NEURON_INSTANCES__"
+              - key: eks.amazonaws.com/compute-type
+                operator: NotIn
+                values:
+                  - fargate
+                  - hybrid
+                  - auto
+  volumeMounts:
+    - name: kubelet-plugins-dir
+      mountPath: /var/lib/kubelet/plugins
+    - name: kubelet-registry-dir
+      mountPath: /var/lib/kubelet/plugins_registry
+    - name: cdi-dir
+      mountPath: /var/run/cdi
+  volumes:
+    - name: kubelet-plugins-dir
+      hostPath:
+        path: /var/lib/kubelet/plugins
+    - name: kubelet-registry-dir
+      hostPath:
+        path: /var/lib/kubelet/plugins_registry
+    - name: cdi-dir
+      hostPath:
+        path: /var/run/cdi
+  livenessProbe:
+    grpc:
+      port: 51515
+      service: liveness
+    failureThreshold: 3
+    periodSeconds: 10
+    initialDelaySeconds: 30
+    timeoutSeconds: 5
 devicePlugin:
+  enabled: true
   nameOverride: neuron-device-plugin
   namespaceOverride: kube-system
   fullnameOverride: neuron-device-plugin
@@ -36,16 +110,11 @@ devicePlugin:
   image:
     repository: public.ecr.aws/neuron/neuron-device-plugin
     pullPolicy: IfNotPresent
-    # Overrides the image tag whose default is the chart appVersion.
-    tag: "2.29.16.0"
+    tag: "2.29.94.0"
   podSecurityContext: {}
   serviceAccount:
-    # Specifies whether a service account should be created
     create: true
-    # Annotations to add to the service account
     annotations: {}
-    # The name of the service account to use.
-    # If not set and create is true, a name is generated using the fullname template
     name: neuron-device-plugin
   updateStrategy:
     type: RollingUpdate
@@ -102,13 +171,12 @@ devicePlugin:
     - name: aws-config
       hostPath:
         path: /opt/aws
-
 scheduler:
   enabled: false
   image:
     repository: public.ecr.aws/neuron/neuron-scheduler
     pullPolicy: IfNotPresent
-    tag: "2.29.16.0"
+    tag: "2.29.94.0"
   imagePullSecrets: []
   nameOverride: neuron-scheduler
   namespaceOverride: kube-system
@@ -176,7 +244,6 @@ scheduler:
       - effect: NoSchedule
         operator: Exists
         key: node.cloudprovider.kubernetes.io/uninitialized
-
 npd:
   enabled: true
   updateStrategy:
@@ -253,25 +320,25 @@ npd:
         - -c
         - |
           echo "Starting NPD with periodic FD health check (every 5s)..."
-          
+
           # Start NPD in background
           /node-problem-detector \
             --logtostderr \
             --config.system-log-monitor=/config/kernel-monitor.json 2>&1 &
-          
+
           NPD_PID=$!
           echo "NPD started with PID: $NPD_PID"
-          
+
           # Periodic health check loop
           while true; do
             sleep 5
-          
+
             # Check if NPD process is still running
             if ! kill -0 $NPD_PID 2>/dev/null; then
               echo "NPD process died, exiting..."
               exit 1
             fi
-          
+
             # Check if NPD still has /dev/kmsg file descriptor open
             if ! ls -l /proc/$NPD_PID/fd/ 2>/dev/null | grep -q "/dev/kmsg"; then
               echo "FATAL: NPD no longer has /dev/kmsg FD open, exiting..."
@@ -291,10 +358,11 @@ npd:
       create: false
   nodeRecovery:
     enabled: false
+    startupDelaySeconds: 60
     image:
       repository: public.ecr.aws/neuron/neuron-node-recovery
       pullPolicy: IfNotPresent
-      tag: "1.7.0"
+      tag: "1.8.0"
     resources:
       limits:
         cpu: 10m
@@ -307,3 +375,6 @@ npd:
       - NeuronHasError_HBM_UNCORRECTABLE_ERROR
       - NeuronHasError_SRAM_UNCORRECTABLE_ERROR
       - NeuronHasError_NC_UNCORRECTABLE_ERROR
+    extraEnvs:
+      - name: AWS_STS_REGIONAL_ENDPOINTS
+        value: "regional"

@@ -1,0 +1,79 @@
+{{- include "neuron-helm-chart.validateConfig" . -}}
+{{- if .Values.devicePlugin.enabled }}
+# https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins/
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "neuron-device-plugin.fullname" . }}
+  namespace: {{ include "neuron-device-plugin.namespace" .  }}
+  labels:
+    {{- include "neuron-device-plugin.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      name: {{ include "neuron-device-plugin.name" . }}-ds
+      {{- include "neuron-device-plugin.selectorLabels" . | nindent 6 }}
+  {{- with .Values.devicePlugin.updateStrategy }}
+  updateStrategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      {{- if (len (include "neuron-device-plugin.podAnnotations" .)) }}
+      annotations:
+        {{- include "neuron-device-plugin.podAnnotations" . | nindent 8 }}
+      {{- end }}
+      labels:
+        name: {{ include "neuron-device-plugin.name" . }}-ds
+        {{- include "neuron-device-plugin.templateLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "neuron-device-plugin.serviceAccountName" . }}
+      {{- with .Values.devicePlugin.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.devicePlugin.priorityClassName }}
+      priorityClassName: {{ .Values.devicePlugin.priorityClassName }}
+      {{- end }}
+      {{- if .Values.devicePlugin.runtimeClassName }}
+      runtimeClassName: {{ .Values.devicePlugin.runtimeClassName }}
+      {{- end }}
+      {{- with .Values.devicePlugin.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.devicePlugin.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.devicePlugin.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.devicePlugin.affinity }}
+      affinity:
+        {{- include "neuron-device-plugin.affinity" $ | nindent 8 }}
+      {{- end }}
+      containers:
+      - image: {{ include "neuron-device-plugin.fullimage" . }}
+        imagePullPolicy: {{ .Values.devicePlugin.image.pullPolicy }}
+        name: neuron-device-plugin
+        {{- with .Values.devicePlugin.env }}
+        env:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        securityContext:
+          {{- include "neuron-device-plugin.securityContext" . | nindent 10 }}
+        {{- with .Values.devicePlugin.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.devicePlugin.volumeMounts }}
+        volumeMounts:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- with .Values.devicePlugin.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
