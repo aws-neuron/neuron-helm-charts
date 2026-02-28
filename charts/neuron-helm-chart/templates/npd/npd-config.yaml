@@ -1,0 +1,12 @@
+{{- if .Values.npd.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.npd.config.name }}
+  namespace: {{ include "neuron-node-problem-detector-and-recovery.namespace" . }}
+  labels:
+    {{- include "neuron-node-problem-detector-and-recovery.labels" . | nindent 4 }}
+data:
+  kernel-monitor.json: |
+    {{- .Values.npd.config.kernelMonitor | nindent 4 }}
+{{- end }}

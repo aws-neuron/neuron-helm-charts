@@ -1,0 +1,29 @@
+{{- if and .Values.scheduler.enabled .Values.scheduler.customScheduler.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "neuron-scheduler.customScheduler.configMapName" . }}
+  namespace: {{ include "neuron-scheduler.customScheduler.namespace" . }}
+data:
+  my-scheduler-config.yaml: |
+    apiVersion: kubescheduler.config.k8s.io/v1
+    kind: KubeSchedulerConfiguration
+    profiles:
+      - schedulerName: {{ include "neuron-scheduler.customScheduler.fullname" . }}
+    extenders:
+      - urlPrefix: 'http://k8s-neuron-scheduler.kube-system.svc.cluster.local:12345'
+        filterVerb: filter
+        bindVerb: bind
+        enableHTTPS: false
+        nodeCacheCapable: false
+        managedResources:
+          - name: 'aws.amazon.com/neuron'
+            ignoredByScheduler: false
+          - name: 'aws.amazon.com/neuroncore'
+            ignoredByScheduler: false
+        ignorable: false
+    leaderElection:
+      leaderElect: true
+      resourceNamespace: {{ include "neuron-scheduler.customScheduler.namespace" . }}
+      resourceName: {{ include "neuron-scheduler.customScheduler.fullname" . }}
+{{- end }}

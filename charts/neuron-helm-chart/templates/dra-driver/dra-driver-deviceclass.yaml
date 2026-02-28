@@ -1,0 +1,12 @@
+{{- if .Values.draDriver.enabled }}
+apiVersion: resource.k8s.io/v1
+kind: DeviceClass
+metadata:
+  name: neuron.aws.com
+  labels:
+    {{- include "neuron-dra-driver.labels" . | nindent 4 }}
+spec:
+  selectors:
+    - cel:
+        expression: device.driver == "neuron.aws.com"
+{{- end }}

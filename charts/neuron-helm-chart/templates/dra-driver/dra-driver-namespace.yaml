@@ -1,0 +1,9 @@
+{{- if .Values.draDriver.enabled }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "neuron-dra-driver.namespace" . }}
+  labels:
+    name: {{ include "neuron-dra-driver.namespace" . }}
+    {{- include "neuron-dra-driver.labels" . | nindent 4 }}
+{{- end }}

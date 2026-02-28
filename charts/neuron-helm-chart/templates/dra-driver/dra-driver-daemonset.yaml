@@ -1,0 +1,88 @@
+{{- include "neuron-helm-chart.validateConfig" . -}}
+{{- if .Values.draDriver.enabled }}
+# https://kubernetes.io/docs/concepts/scheduling-eviction/dynamic-resource-allocation/
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "neuron-dra-driver.fullname" . }}
+  namespace: {{ include "neuron-dra-driver.namespace" .  }}
+  labels:
+    app: {{ include "neuron-dra-driver.fullname" . }}
+    {{- include "neuron-dra-driver.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ include "neuron-dra-driver.fullname" . }}
+      {{- include "neuron-dra-driver.selectorLabels" . | nindent 6 }}
+  {{- with .Values.draDriver.updateStrategy }}
+  updateStrategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      {{- if (len (include "neuron-dra-driver.podAnnotations" .)) }}
+      annotations:
+        {{- include "neuron-dra-driver.podAnnotations" . | nindent 8 }}
+      {{- end }}
+      labels:
+        app: {{ include "neuron-dra-driver.fullname" . }}
+        {{- include "neuron-dra-driver.templateLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "neuron-dra-driver.serviceAccountName" . }}
+      {{- with .Values.draDriver.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.draDriver.priorityClassName }}
+      priorityClassName: {{ .Values.draDriver.priorityClassName }}
+      {{- end }}
+      {{- if .Values.draDriver.runtimeClassName }}
+      runtimeClassName: {{ .Values.draDriver.runtimeClassName }}
+      {{- end }}
+      {{- with .Values.draDriver.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.draDriver.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.draDriver.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.draDriver.affinity }}
+      affinity:
+        {{- include "neuron-dra-driver.affinity" $ | nindent 8 }}
+      {{- end }}
+      hostNetwork: true
+      containers:
+      - image: {{ include "neuron-dra-driver.fullimage" . }}
+        imagePullPolicy: {{ .Values.draDriver.image.pullPolicy }}
+        name: neuron-dra-driver
+        command: ["k8s-neuron-dra-driver"]
+        {{- with .Values.draDriver.env }}
+        env:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.draDriver.securityContext }}
+        securityContext:
+          {{- include "neuron-dra-driver.securityContext" . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.draDriver.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.draDriver.volumeMounts }}
+        volumeMounts:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.draDriver.livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- with .Values.draDriver.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
