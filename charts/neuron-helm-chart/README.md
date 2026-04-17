@@ -101,7 +101,7 @@ helm uninstall neuron-helm-chart
 |-----------|-------------|---------|
 | `devicePlugin.enabled` | Enable Neuron Device Plugin | `true` |
 | `devicePlugin.image.repository` | Device Plugin image repository | `public.ecr.aws/neuron/neuron-device-plugin` |
-| `devicePlugin.image.tag` | Device Plugin image tag | `2.29.94.0` |
+| `devicePlugin.image.tag` | Device Plugin image tag | `2.29.148.0` |
 | `devicePlugin.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `devicePlugin.nameOverride` | Override component name | `neuron-device-plugin` |
 | `devicePlugin.namespaceOverride` | Override namespace | `kube-system` |
@@ -122,7 +122,7 @@ helm uninstall neuron-helm-chart
 |-----------|-------------|---------|
 | `scheduler.enabled` | Enable Neuron Scheduler Extension (requires devicePlugin.enabled) | `false` |
 | `scheduler.image.repository` | Scheduler extension image repository | `public.ecr.aws/neuron/neuron-scheduler` |
-| `scheduler.image.tag` | Scheduler extension image tag | `2.29.94.0` |
+| `scheduler.image.tag` | Scheduler extension image tag | `2.29.148.0` |
 | `scheduler.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `scheduler.nameOverride` | Override component name | `neuron-scheduler` |
 | `scheduler.namespaceOverride` | Override namespace | `kube-system` |
@@ -183,7 +183,7 @@ helm uninstall neuron-helm-chart
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `npd.nodeProblemDetector.image.repository` | NPD image repository | `registry.k8s.io/node-problem-detector/node-problem-detector` |
-| `npd.nodeProblemDetector.image.tag` | NPD image tag | `v1.35.1` |
+| `npd.nodeProblemDetector.image.tag` | NPD image tag | `v1.35.2` |
 | `npd.nodeProblemDetector.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `npd.nodeProblemDetector.resources.limits.cpu` | CPU limit | `10m` |
 | `npd.nodeProblemDetector.resources.limits.memory` | Memory limit | `80Mi` |
@@ -198,7 +198,7 @@ helm uninstall neuron-helm-chart
 | `npd.nodeRecovery.enabled` | Enable node recovery agent | `false` |
 | `npd.nodeRecovery.startupDelaySeconds` | Startup delay in seconds | `60` |
 | `npd.nodeRecovery.image.repository` | Recovery agent image repository | `public.ecr.aws/neuron/neuron-node-recovery` |
-| `npd.nodeRecovery.image.tag` | Recovery agent image tag | `1.8.0` |
+| `npd.nodeRecovery.image.tag` | Recovery agent image tag | `1.9.0` |
 | `npd.nodeRecovery.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `npd.nodeRecovery.resources.limits.cpu` | CPU limit | `10m` |
 | `npd.nodeRecovery.resources.limits.memory` | Memory limit | `150Mi` |
@@ -212,7 +212,7 @@ helm uninstall neuron-helm-chart
 |-----------|-------------|---------|
 | `draDriver.enabled` | Enable Neuron DRA Driver (mutually exclusive with devicePlugin and scheduler) | `false` |
 | `draDriver.image.repository` | DRA Driver image repository | `public.ecr.aws/neuron/neuron-dra-driver` |
-| `draDriver.image.tag` | DRA Driver image tag | `1.0.0` |
+| `draDriver.image.tag` | DRA Driver image tag | `1.0.1` |
 | `draDriver.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `draDriver.nameOverride` | Override component name | `neuron-dra-driver` |
 | `draDriver.namespaceOverride` | Override namespace | `neuron-dra-driver` |

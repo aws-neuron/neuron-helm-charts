@@ -18,10 +18,11 @@ spec:
   {{- end }}
   template:
     metadata:
-      {{- if (len (include "neuron-node-problem-detector-and-recovery.podAnnotations" .)) }}
       annotations:
-        {{- include "neuron-node-problem-detector-and-recovery.podAnnotations" . | nindent 8 }}
-      {{- end }}
+        checksum/npd-config: {{ include (print $.Template.BasePath "/npd/npd-config.yaml") . | sha256sum }}
+        {{- with .Values.npd.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
         app: {{ include "neuron-node-problem-detector-and-recovery.fullname" . }}
         {{- include "neuron-node-problem-detector-and-recovery.templateLabels" . | nindent 8 }}
