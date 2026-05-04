@@ -101,7 +101,7 @@ helm uninstall neuron-helm-chart
 |-----------|-------------|---------|
 | `devicePlugin.enabled` | Enable Neuron Device Plugin | `true` |
 | `devicePlugin.image.repository` | Device Plugin image repository | `public.ecr.aws/neuron/neuron-device-plugin` |
-| `devicePlugin.image.tag` | Device Plugin image tag | `2.29.148.0` |
+| `devicePlugin.image.tag` | Device Plugin image tag | `2.29.149.0` |
 | `devicePlugin.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `devicePlugin.nameOverride` | Override component name | `neuron-device-plugin` |
 | `devicePlugin.namespaceOverride` | Override namespace | `kube-system` |
@@ -122,7 +122,7 @@ helm uninstall neuron-helm-chart
 |-----------|-------------|---------|
 | `scheduler.enabled` | Enable Neuron Scheduler Extension (requires devicePlugin.enabled) | `false` |
 | `scheduler.image.repository` | Scheduler extension image repository | `public.ecr.aws/neuron/neuron-scheduler` |
-| `scheduler.image.tag` | Scheduler extension image tag | `2.29.148.0` |
+| `scheduler.image.tag` | Scheduler extension image tag | `2.29.149.0` |
 | `scheduler.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `scheduler.nameOverride` | Override component name | `neuron-scheduler` |
 | `scheduler.namespaceOverride` | Override namespace | `kube-system` |
