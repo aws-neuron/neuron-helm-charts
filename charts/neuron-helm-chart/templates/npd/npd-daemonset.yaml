@@ -1,4 +1,4 @@
-{{- if and .Values.npd.enabled (not .Values.draDriver.enabled) }}
+{{- if .Values.npd.enabled }}
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:

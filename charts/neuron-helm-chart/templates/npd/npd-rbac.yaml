@@ -1,4 +1,4 @@
-{{- if and .Values.npd.enabled (not .Values.draDriver.enabled) }}
+{{- if .Values.npd.enabled }}
 {{- if .Values.npd.nodeProblemDetector.clusterRole.create }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

@@ -1,4 +1,4 @@
-{{- if and .Values.npd.enabled (not .Values.draDriver.enabled) }}
+{{- if .Values.npd.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
