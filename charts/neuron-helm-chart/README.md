@@ -73,10 +73,8 @@ The Neuron DRA Driver is disabled by default.
 
 To install the Neuron DRA Driver:
 ```
- helm upgrade --install neuron-helm-chart oci://public.ecr.aws/neuron/neuron-helm-chart \
-    --set "devicePlugin.enabled=false" \
-    --set "npd.enabled=false" \
-    --set "draDriver.enabled=true"
+helm upgrade --install neuron-helm-chart oci://public.ecr.aws/neuron/neuron-helm-chart \
+  --set "draDriver.enabled=true"
 ```
 
 Note: Neuron Device Plugin and Neuron DRA Driver plugin **cannot** run on the same node. As of now, the two mechanisms act independently.

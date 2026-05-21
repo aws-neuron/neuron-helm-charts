@@ -1,5 +1,5 @@
 {{- include "neuron-helm-chart.validateConfig" . -}}
-{{- if .Values.devicePlugin.enabled }}
+{{- if and .Values.devicePlugin.enabled (not .Values.draDriver.enabled) }}
 # https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins/
 apiVersion: apps/v1
 kind: DaemonSet
