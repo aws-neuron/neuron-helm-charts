@@ -1,0 +1,3 @@
+{{- if and .Values.draDriver.enabled .Values.devicePlugin.enabled }}
+WARNING: DRA driver and device plugin cannot both be active. Device plugin has been skipped because DRA driver takes precedence.
+{{- end }}

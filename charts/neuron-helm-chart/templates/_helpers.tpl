@@ -14,9 +14,6 @@ Validate configuration
 */}}
 {{- define "neuron-helm-chart.validateConfig" -}}
 {{- if .Values.draDriver.enabled -}}
-  {{- if .Values.devicePlugin.enabled -}}
-    {{- fail "DRA driver and device plugin cannot both be enabled. Please set either draDriver.enabled=false or devicePlugin.enabled=false" -}}
-  {{- end -}}
   {{- if .Values.scheduler.enabled -}}
     {{- fail "DRA driver and scheduler cannot both be enabled. Please set either draDriver.enabled=false or scheduler.enabled=false" -}}
   {{- end -}}
