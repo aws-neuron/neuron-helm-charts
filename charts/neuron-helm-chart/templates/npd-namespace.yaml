@@ -1,0 +1,9 @@
+{{- if and .Values.npd.enabled .Values.npd.namespace.create }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "neuron-node-problem-detector-and-recovery.namespace" . }}
+  labels:
+    app: {{ include "neuron-node-problem-detector-and-recovery.fullname" . }}
+    {{- include "neuron-node-problem-detector-and-recovery.labels" . | nindent 4 }}
+{{- end }}

@@ -499,7 +499,7 @@ Expand the name of the chart.
 Expand the namespace of the chart.
 */}}
 {{- define "neuron-node-problem-detector-and-recovery.namespace" -}}
-{{- default .Release.Namespace .Values.npd.namespaceOverride | trunc 63 | trimSuffix "-" -}}
+{{- default .Release.Namespace .Values.npd.namespace.name | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*

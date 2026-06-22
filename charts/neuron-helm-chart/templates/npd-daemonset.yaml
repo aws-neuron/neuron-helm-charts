@@ -1,4 +1,5 @@
 {{- if .Values.npd.enabled }}
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:

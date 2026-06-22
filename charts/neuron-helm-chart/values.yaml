@@ -293,7 +293,9 @@ npd:
       }
   imagePullSecrets: []
   nameOverride: node-problem-detector
-  namespaceOverride: neuron-healthcheck-system
+  namespace:
+    name: neuron-healthcheck-system
+    create: false
   fullnameOverride: node-problem-detector
   selectorLabelsOverride: {}
   serviceAccount:
