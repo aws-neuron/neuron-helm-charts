@@ -61,9 +61,13 @@ spec:
         imagePullPolicy: {{ .Values.draDriver.image.pullPolicy }}
         name: neuron-dra-driver
         command: ["k8s-neuron-dra-driver"]
-        {{- with .Values.draDriver.env }}
         env:
+        {{- with .Values.draDriver.env }}
           {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.ultraserverOperator.enabled }}
+        - name: ENABLE_ULTRASERVER_OPERATOR
+          value: "true"
         {{- end }}
         {{- if .Values.draDriver.securityContext }}
         securityContext:

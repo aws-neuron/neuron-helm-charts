@@ -17,6 +17,7 @@ declare -A REPOSITORIES=(
     ["public.ecr.aws/neuron/neuron-scheduler"]="scheduler.image.tag"
     ["public.ecr.aws/neuron/neuron-node-recovery"]="npd.nodeRecovery.image.tag"
     ["public.ecr.aws/neuron/neuron-dra-driver"]="draDriver.image.tag"
+    ["public.ecr.aws/neuron/neuron-ultraserver-operator"]="ultraserverOperator.image.tag"
     ["registry.k8s.io/node-problem-detector/node-problem-detector"]="npd.nodeProblemDetector.image.tag"
 )
 

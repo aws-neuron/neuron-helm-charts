@@ -1,0 +1,89 @@
+{{- if .Values.ultraserverOperator.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "neuron-ultraserver-operator.fullname" . }}-clusterrole
+  labels:
+    app: {{ include "neuron-ultraserver-operator.fullname" . }}
+    {{- include "neuron-ultraserver-operator.labels" . | nindent 4 }}
+rules:
+# Required for ResourceSlice controller to watch ResourceSlices for topology changes
+- apiGroups: ["resource.k8s.io"]
+  resources: ["resourceslices"]
+  verbs: ["get", "list", "watch"]
+# Required for ResourceSlice controller to validate node membership via capacity-block-id
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch"]
+# Required for Workload controller to create/manage ResourceClaimTemplates for workloads
+- apiGroups: ["resource.k8s.io"]
+  resources: ["resourceclaimtemplates"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Required for ResourceSlice controller to manage UltraServer resources
+- apiGroups: ["neuron.aws.com"]
+  resources: ["neuronultraservers"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Required to update UltraServer status with topology health
+- apiGroups: ["neuron.aws.com"]
+  resources: ["neuronultraservers/status"]
+  verbs: ["get", "update", "patch"]
+# Required for Workload controller to manage UltraServerWorkload resources
+- apiGroups: ["neuron.aws.com"]
+  resources: ["neuronultraserverworkloads"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Required to update UltraServerWorkload status with allocation state
+- apiGroups: ["neuron.aws.com"]
+  resources: ["neuronultraserverworkloads/status"]
+  verbs: ["get", "update", "patch"]
+# Required to update UltraServerWorkload finalizers
+- apiGroups: ["neuron.aws.com"]
+  resources: ["neuronultraserverworkloads/finalizers"]
+  verbs: ["update"]
+# Required for leader election
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Required for controller events
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+# Required for Workload controller to list pods for eviction during failure recovery
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+# Required for Workload controller to evict pods during migration
+- apiGroups: [""]
+  resources: ["pods/eviction"]
+  verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "neuron-ultraserver-operator.fullname" . }}-binding
+  labels:
+    app: {{ include "neuron-ultraserver-operator.fullname" . }}
+    {{- include "neuron-ultraserver-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "neuron-ultraserver-operator.fullname" . }}-clusterrole
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "neuron-ultraserver-operator.serviceAccountName" . }}
+    namespace: {{ include "neuron-ultraserver-operator.namespace" . }}
+---
+{{- if .Values.ultraserverOperator.serviceAccount.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "neuron-ultraserver-operator.serviceAccountName" . }}
+  namespace: {{ include "neuron-ultraserver-operator.namespace" . }}
+  labels:
+    app: {{ include "neuron-ultraserver-operator.fullname" . }}
+    {{- include "neuron-ultraserver-operator.labels" . | nindent 4 }}
+  {{- with .Values.ultraserverOperator.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}

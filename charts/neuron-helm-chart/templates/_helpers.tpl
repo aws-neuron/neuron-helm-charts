@@ -24,6 +24,9 @@ Validate configuration
 {{- if and .Values.scheduler.enabled .Values.scheduler.customScheduler.enabled .Values.scheduler.defaultScheduler.enabled -}}
   {{- fail "Scheduler customScheduler and defaultScheduler cannot both be enabled. Please enable only one" -}}
 {{- end -}}
+{{- if and .Values.ultraserverOperator.enabled (not .Values.draDriver.enabled) -}}
+  {{- fail "UltraServer operator requires DRA driver to be enabled. Please set draDriver.enabled=true or disable the ultraserver operator" -}}
+{{- end -}}
 {{- end -}}
 
 {{/*
@@ -486,6 +489,82 @@ Config map name of the custom scheduler
 */}}
 {{- define "neuron-scheduler.customScheduler.configMapName" -}}
 {{- printf "%s-config" (include "neuron-scheduler.customScheduler.fullname" .) -}}
+{{- end }}
+
+{{/*
+Expand the name of the chart.
+*/}}
+{{- define "neuron-ultraserver-operator.name" -}}
+{{- default .Chart.Name .Values.ultraserverOperator.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Expand the namespace of the chart.
+*/}}
+{{- define "neuron-ultraserver-operator.namespace" -}}
+{{- default .Release.Namespace .Values.ultraserverOperator.namespaceOverride | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Create a default fully qualified app name.
+*/}}
+{{- define "neuron-ultraserver-operator.fullname" -}}
+{{- if .Values.ultraserverOperator.fullnameOverride -}}
+{{- .Values.ultraserverOperator.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $name := default .Chart.Name .Values.ultraserverOperator.nameOverride -}}
+{{- if contains $name .Release.Name -}}
+{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Create the name of the service account to use
+*/}}
+{{- define "neuron-ultraserver-operator.serviceAccountName" -}}
+{{- if .Values.ultraserverOperator.serviceAccount.create -}}
+{{ default (include "neuron-ultraserver-operator.fullname" .) .Values.ultraserverOperator.serviceAccount.name }}
+{{- else -}}
+{{ default "default" .Values.ultraserverOperator.serviceAccount.name }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Neuron UltraServer Operator image to use
+*/}}
+{{- define "neuron-ultraserver-operator.fullimage" -}}
+{{- printf "%s:%s" .Values.ultraserverOperator.image.repository .Values.ultraserverOperator.image.tag -}}
+{{- end -}}
+
+{{/*
+Common labels
+*/}}
+{{- define "neuron-ultraserver-operator.labels" -}}
+helm.sh/chart: {{ include "neuron-helm-chart.chart" . }}
+{{ include "neuron-ultraserver-operator.templateLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end -}}
+
+{{/*
+Template labels
+*/}}
+{{- define "neuron-ultraserver-operator.templateLabels" -}}
+app.kubernetes.io/name: {{ include "neuron-ultraserver-operator.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
+Selector labels
+*/}}
+{{- define "neuron-ultraserver-operator.selectorLabels" -}}
+app: {{ include "neuron-ultraserver-operator.fullname" . }}
+{{ include "neuron-ultraserver-operator.templateLabels" . }}
 {{- end }}
 
 {{/*

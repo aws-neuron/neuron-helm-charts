@@ -7,6 +7,7 @@ AWS Neuron Helm Chart for Kubernetes
 * Neuron Scheduler Extension
 * Neuron Node Problem Detector Plugin and Recovery Agent
 * Neuron DRA Driver
+* Neuron UltraServer Operator
 
 ## Prerequisites
 
@@ -79,6 +80,20 @@ helm upgrade --install neuron-helm-chart oci://public.ecr.aws/neuron/neuron-helm
 
 Note: Neuron Device Plugin and Neuron DRA Driver plugin **cannot** run on the same node. As of now, the two mechanisms act independently.
 
+### Neuron UltraServer Operator
+
+**Prerequisites**
+- The Neuron DRA Driver is enabled
+
+The Neuron UltraServer Operator is disabled by default.
+
+To install the Neuron UltraServer Operator:
+```
+helm upgrade --install neuron-helm-chart oci://public.ecr.aws/neuron/neuron-helm-chart \
+  --set "draDriver.enabled=true" \
+  --set "ultraserverOperator.enabled=true"
+```
+
 ## Uninstalling the Chart
 
 ```
@@ -99,7 +114,7 @@ helm uninstall neuron-helm-chart
 |-----------|-------------|---------|
 | `devicePlugin.enabled` | Enable Neuron Device Plugin | `true` |
 | `devicePlugin.image.repository` | Device Plugin image repository | `public.ecr.aws/neuron/neuron-device-plugin` |
-| `devicePlugin.image.tag` | Device Plugin image tag | `2.30.0.0` |
+| `devicePlugin.image.tag` | Device Plugin image tag | `2.31.0.0` |
 | `devicePlugin.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `devicePlugin.nameOverride` | Override component name | `neuron-device-plugin` |
 | `devicePlugin.namespaceOverride` | Override namespace | `kube-system` |
@@ -120,7 +135,7 @@ helm uninstall neuron-helm-chart
 |-----------|-------------|---------|
 | `scheduler.enabled` | Enable Neuron Scheduler Extension (requires devicePlugin.enabled) | `false` |
 | `scheduler.image.repository` | Scheduler extension image repository | `public.ecr.aws/neuron/neuron-scheduler` |
-| `scheduler.image.tag` | Scheduler extension image tag | `2.30.0.0` |
+| `scheduler.image.tag` | Scheduler extension image tag | `2.31.0.0` |
 | `scheduler.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `scheduler.nameOverride` | Override component name | `neuron-scheduler` |
 | `scheduler.namespaceOverride` | Override namespace | `kube-system` |
@@ -196,7 +211,7 @@ helm uninstall neuron-helm-chart
 | `npd.nodeRecovery.enabled` | Enable node recovery agent | `false` |
 | `npd.nodeRecovery.startupDelaySeconds` | Startup delay in seconds | `60` |
 | `npd.nodeRecovery.image.repository` | Recovery agent image repository | `public.ecr.aws/neuron/neuron-node-recovery` |
-| `npd.nodeRecovery.image.tag` | Recovery agent image tag | `1.10.0` |
+| `npd.nodeRecovery.image.tag` | Recovery agent image tag | `1.11.0` |
 | `npd.nodeRecovery.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `npd.nodeRecovery.resources.limits.cpu` | CPU limit | `10m` |
 | `npd.nodeRecovery.resources.limits.memory` | Memory limit | `150Mi` |
@@ -210,7 +225,7 @@ helm uninstall neuron-helm-chart
 |-----------|-------------|---------|
 | `draDriver.enabled` | Enable Neuron DRA Driver (mutually exclusive with devicePlugin and scheduler) | `false` |
 | `draDriver.image.repository` | DRA Driver image repository | `public.ecr.aws/neuron/neuron-dra-driver` |
-| `draDriver.image.tag` | DRA Driver image tag | `1.0.2` |
+| `draDriver.image.tag` | DRA Driver image tag | `1.1.0` |
 | `draDriver.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `draDriver.nameOverride` | Override component name | `neuron-dra-driver` |
 | `draDriver.namespaceOverride` | Override namespace | `neuron-dra-driver` |
@@ -235,10 +250,37 @@ helm uninstall neuron-helm-chart
 | `draDriver.livenessProbe.initialDelaySeconds` | Liveness probe initial delay | `30` |
 | `draDriver.livenessProbe.timeoutSeconds` | Liveness probe timeout | `5` |
 
+### UltraServer Operator Configuration
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `ultraserverOperator.enabled` | Enable Neuron UltraServer Operator (requires draDriver.enabled) | `false` |
+| `ultraserverOperator.image.repository` | UltraServer Operator image repository | `public.ecr.aws/neuron/neuron-ultraserver-operator` |
+| `ultraserverOperator.image.tag` | UltraServer Operator image tag | `0.1.0` |
+| `ultraserverOperator.image.pullPolicy` | Image pull policy | `IfNotPresent` |
+| `ultraserverOperator.nameOverride` | Override component name | `neuron-ultraserver-operator` |
+| `ultraserverOperator.namespaceOverride` | Override namespace | `neuron-dra-driver` |
+| `ultraserverOperator.fullnameOverride` | Override full name | `neuron-ultraserver-operator` |
+| `ultraserverOperator.serviceAccount.create` | Create service account | `true` |
+| `ultraserverOperator.serviceAccount.name` | Service account name | `neuron-ultraserver-operator` |
+| `ultraserverOperator.serviceAccount.annotations` | Service account annotations | `{}` |
+| `ultraserverOperator.resources.limits.cpu` | CPU limit | `500m` |
+| `ultraserverOperator.resources.limits.memory` | Memory limit | `128Mi` |
+| `ultraserverOperator.resources.requests.cpu` | CPU request | `10m` |
+| `ultraserverOperator.resources.requests.memory` | Memory request | `64Mi` |
+| `ultraserverOperator.healthPort` | Health probe port | `8081` |
+| `ultraserverOperator.metricsPort` | Metrics port | `8080` |
+| `ultraserverOperator.leaderElect` | Enable leader election | `true` |
+| `ultraserverOperator.verbosity` | Log verbosity level | `2` |
+| `ultraserverOperator.nodeSelector` | Node selector | `{}` |
+| `ultraserverOperator.tolerations` | Pod tolerations | `[]` |
+| `ultraserverOperator.affinity` | Pod affinity rules | `{}` |
+
 ## Validation Rules
 
 The chart enforces the following validation rules:
 
 1. **Scheduler requires Device Plugin**: `scheduler.enabled=true` requires `devicePlugin.enabled=true`
 2. **Mutually exclusive scheduler modes**: Only one of `scheduler.customScheduler.enabled` or `scheduler.defaultScheduler.enabled` can be true
-3. **DRA Driver exclusivity**: `draDriver.enabled=true` cannot be used with `devicePlugin.enabled=true` or `scheduler.enabled=true`
+3. **DRA Driver exclusivity**: `draDriver.enabled=true` cannot be used with `scheduler.enabled=true`
+4. **UltraServer Operator requires DRA Driver**: `ultraserverOperator.enabled=true` requires `draDriver.enabled=true`
