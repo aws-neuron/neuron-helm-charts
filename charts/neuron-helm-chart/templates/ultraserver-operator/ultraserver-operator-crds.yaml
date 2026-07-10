@@ -1,0 +1,504 @@
+{{- if .Values.ultraserverOperator.enabled }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: neuronultraservers.neuron.aws.com
+  labels:
+    app: {{ include "neuron-ultraserver-operator.fullname" . }}
+    {{- include "neuron-ultraserver-operator.labels" . | nindent 4 }}
+spec:
+  group: neuron.aws.com
+  names:
+    kind: NeuronUltraServer
+    listKind: NeuronUltraServerList
+    plural: neuronultraservers
+    shortNames:
+    - nus
+    singular: neuronultraserver
+  scope: Namespaced
+  versions:
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          NeuronUltraServer is a custom resource that represents a cluster of Neuron nodes
+          organized as an ultraserver topology. It defines the physical layout and
+          interconnection of multiple neuron nodes, enabling high-performance
+          distributed workloads on AWS Trainium and Inferentia chips.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec defines the desired state of the NeuronUltraServer,
+              including the node topology.
+            properties:
+              instanceType:
+                description: |-
+                  InstanceType specifies the AWS EC2 instance type of the nodes in this ultraserver.
+                  Examples: "trn3-dev0.48xlarge"
+                maxLength: 253
+                minLength: 1
+                pattern: ^[a-zA-Z0-9][a-zA-Z0-9.\-]*$
+                type: string
+              topology:
+                description: |-
+                  Topology defines the list of nodes and their interconnection status
+                  within the ultraserver cluster. Each node represents a physical or
+                  virtual machine with Neuron devices.
+                items:
+                  description: |-
+                    NodeTopology represents a single node within the ultraserver topology,
+                    including its identification and link status to neighboring nodes.
+                  properties:
+                    linkStatusHorizontal:
+                      description: |-
+                        LinkStatusHorizontal indicates the health status of the horizontal interconnect
+                        links (e.g., NeuronLink connections to nodes left/right in the topology).
+                        Possible values include "up" or "down".
+                      type: string
+                    linkStatusVertical:
+                      description: |-
+                        LinkStatusVertical indicates the health status of the vertical interconnect
+                        links (e.g., NeuronLink connections to nodes above/below in the topology).
+                        Possible values include "up" or "down".
+                      type: string
+                    nodeId:
+                      description: |-
+                        NodeID is a unique integer identifier for the node within the ultraserver topology.
+                        This ID is used to determine the node's position in the cluster mesh.
+                      type: integer
+                    nodeName:
+                      description: NodeName is the Kubernetes node name where the
+                        Neuron devices are located.
+                      type: string
+                  required:
+                  - linkStatusHorizontal
+                  - linkStatusVertical
+                  - nodeId
+                  - nodeName
+                  type: object
+                type: array
+                x-kubernetes-list-type: atomic
+            required:
+            - instanceType
+            - topology
+            type: object
+          status:
+            description: Status represents the current observed state of the NeuronUltraServer.
+            properties:
+              allocations:
+                description: |-
+                  Allocations contains the list of workloads currently allocated on this ultraserver.
+                  An empty list indicates the ultraserver is available for new allocations.
+                items:
+                  description: |-
+                    Allocation represents a workload allocation on the ultraserver, tracking which
+                    nodes have been assigned to a specific workload and when the allocation occurred.
+                  properties:
+                    allocatedAt:
+                      description: AllocatedAt is the timestamp when the allocation
+                        was made.
+                      format: date-time
+                      type: string
+                    allocatedNodes:
+                      description: |-
+                        AllocatedNodes is the list of node names that have been assigned to this workload.
+                        Each node in this list contributes Neuron devices to the workload's allocation.
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    leaderNodeName:
+                      description: |-
+                        LeaderNodeName identifies the primary node (rank 0) for distributed multi-node workloads.
+                        This node serves as the coordinator for distributed training or inference jobs,
+                        typically handling initialization, synchronization, and aggregation tasks.
+                      type: string
+                    nodeCount:
+                      description: |-
+                        NodeCount indicates the number of nodes within this ultraserver that are
+                        allocated to the workload.
+                      type: integer
+                    phase:
+                      description: |-
+                        Phase tracks the allocation lifecycle.
+                        Possible values:
+                          - "Pending": Allocation reserved, awaiting gang confirmation
+                          - "Bound": Gang confirmed, allocation active and ready for scheduling
+                      type: string
+                    ultraserverIndex:
+                      description: |-
+                        UltraServerIndex is the zero-based position of this ultraserver in the workload's allocation list.
+                        When multiple ultraservers are allocated to a workload, they are assigned indices 0, 1, 2, etc.
+                        based on their order in the candidates list during allocation. This index is used in topology ID
+                        calculations: topoID = UltraServerIndex * NodeCount + nodeIndex, where nodeIndex is the position
+                        of the current node within the ultraserver's sorted allocated nodes.
+                      type: integer
+                    workloadRef:
+                      description: |-
+                        WorkloadRef is a reference to the NeuronUltraServerWorkload that owns this allocation.
+                        Format: "namespace/name" (e.g., "ml-team/training-job-123").
+                        This enables direct lookup of the workload using Kubernetes native naming.
+                      type: string
+                  required:
+                  - allocatedAt
+                  - allocatedNodes
+                  - leaderNodeName
+                  - nodeCount
+                  - phase
+                  - ultraserverIndex
+                  - workloadRef
+                  type: object
+                type: array
+                x-kubernetes-list-type: atomic
+              conditions:
+                description: |-
+                  Conditions represents the latest available observations of the ultraserver's state.
+                  Standard condition types include:
+                    - "Ready": True when the ultraserver hardware is fully operational
+                    - "Degraded": True when some components have issues
+                    - "Allocated": True when the ultraserver has active workload allocations
+                  These conditions follow the standard Kubernetes condition format with
+                  Type, Status (True/False/Unknown), Reason, Message, and LastTransitionTime.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the most recent generation observed by the controller.
+                  It corresponds to the NeuronUltraServer's generation, which is updated on mutation
+                  by the API Server. When this equals metadata.generation, the status reflects
+                  the current spec.
+                format: int64
+                type: integer
+              state:
+                description: |-
+                  State represents the current operational/health state of the ultraserver hardware.
+                  Possible values:
+                    - "Ready": All nodes and links are healthy and operational
+                    - "Degraded": Some nodes or links have issues but ultraserver is partially functional
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+        x-kubernetes-validations:
+        - message: spec.instanceType is immutable once set
+          rule: self.spec.instanceType == oldSelf.spec.instanceType
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: neuronultraserverworkloads.neuron.aws.com
+  labels:
+    app: {{ include "neuron-ultraserver-operator.fullname" . }}
+    {{- include "neuron-ultraserver-operator.labels" . | nindent 4 }}
+spec:
+  group: neuron.aws.com
+  names:
+    kind: NeuronUltraServerWorkload
+    listKind: NeuronUltraServerWorkloadList
+    plural: neuronultraserverworkloads
+    shortNames:
+    - nusw
+    singular: neuronultraserverworkload
+  scope: Namespaced
+  versions:
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          NeuronUltraServerWorkload is a custom resource that represents a workload request
+          for NeuronUltraServer resources. It defines the desired allocation of NeuronUltraServers
+          for distributed training or inference workloads on AWS Trainium
+          chips. The controller reconciles this resource by allocating
+          the requested number of NeuronUltraServers and updating the status accordingly.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              Spec defines the desired state of the NeuronUltraServerWorkload, including
+              the number of servers needed and allocation preferences.
+            properties:
+              allocationPolicy:
+                description: |-
+                  AllocationPolicy defines the policy for handling allocation scenarios,
+                  such as what to do when the requested resources are not fully available or degraded.
+                properties:
+                  failureStrategy:
+                    default: NoOp
+                    description: |-
+                      FailureStrategy specifies how to handle node failures within an allocated
+                      NeuronUltraServer configuration. This determines the recovery behavior when a
+                      node in the workload's allocation becomes unavailable.
+                      Possible values:
+                        - "NoOp": Take no automatic action (default). Manual intervention required.
+                        - "RestartAll": Evict all pods and reallocate from scratch. Use when
+                          workload state cannot be preserved or full restart is acceptable.
+                        - "MigrateAffected": Migrate the affected workload pods to a new ultraserver
+                    type: string
+                type: object
+              config:
+                description: |-
+                  Config specifies the Neuron device configuration parameters for this workload.
+                  This allows customization of Neuron-specific settings such as logical NeuronCore count.
+                  If not specified, default Neuron configuration will be used.
+                properties:
+                  logicalNeuronCore:
+                    default: 2
+                    description: |-
+                      LogicalNeuronCore determines the number of NeuronCores exposed.
+                      Valid values are 1 or 2. Default is 2 if not specified.
+                      See https://awsdocs-neuron.readthedocs-hosted.com/en/latest/about-neuron/arch/neuron-features/logical-neuroncore-config.html
+                    maximum: 2
+                    minimum: 1
+                    type: integer
+                type: object
+              instanceType:
+                description: |-
+                  InstanceType specifies the AWS EC2 instance type required for this workload.
+                  This is used to match the workload with compatible NeuronUltraServers.
+                  Examples: "trn3-dev0.48xlarge"
+                type: string
+              resourceClaimTemplate:
+                description: |-
+                  ResourceClaimTemplate references a template for creating DRA ResourceClaims
+                  that will be associated with this workload. This enables integration with
+                  Kubernetes Dynamic Resource Allocation (DRA) for fine-grained resource management.
+                properties:
+                  name:
+                    description: |-
+                      Name is the name of the ResourceClaimTemplate resource in the same namespace
+                      that will be used to create ResourceClaims for this workload.
+                    type: string
+                required:
+                - name
+                type: object
+              serverCount:
+                description: |-
+                  ServerCount specifies the number of NeuronUltraServers to allocate
+                  for this workload. Each NeuronUltraServer represents a group of interconnected
+                  Neuron nodes that can work together for distributed computation.
+                minimum: 1
+                type: integer
+              topologySize:
+                description: |-
+                  TopologySize specifies the size/configuration of the ultraserver topology
+                  required for this workload.
+                  Common values represent different topology configurations (e.g., 1, 2, 4).
+                maximum: 4
+                minimum: 1
+                type: integer
+            required:
+            - instanceType
+            - serverCount
+            - topologySize
+            type: object
+          status:
+            description: |-
+              Status represents the current observed state of the NeuronUltraServerWorkload,
+              including which NeuronUltraServers have been allocated and the allocation status.
+            properties:
+              allocatedAt:
+                description: AllocatedAt is the timestamp when the allocation was
+                  completed or last updated.
+                format: date-time
+                type: string
+              allocatedUltraServers:
+                description: |-
+                  AllocatedUltraServers is the list of NeuronUltraServer resource names that have
+                  been allocated to this workload. Each entry corresponds to a NeuronUltraServer
+                  CR that has this workload in its allocations (referenced via WorkloadRef
+                  in the format "namespace/name").
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: atomic
+              conditions:
+                description: |-
+                  Conditions represents the latest available observations of the workload's state.
+                  Standard condition types include:
+                    - "Ready": True when the workload has all requested resources allocated
+                    - "Progressing": True when allocation is in progress
+                    - "Degraded": True when allocation is partial or experiencing issues
+                  These conditions follow the standard Kubernetes condition format.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the most recent generation observed by the controller.
+                  When this equals metadata.generation, the status reflects the current spec.
+                format: int64
+                type: integer
+              state:
+                description: |-
+                  State represents the current state of the workload allocation.
+                  Possible values:
+                    - "Pending": Allocation request is pending, waiting for resources
+                    - "Allocating": Allocation is in progress
+                    - "Allocated": All requested NeuronUltraServers have been successfully allocated
+                    - "PartiallyAllocated": Some but not all requested servers were allocated
+                    - "Failed": Allocation failed and cannot proceed
+                    - "Deallocating": Resources are being released
+                enum:
+                - Pending
+                - Allocating
+                - Allocated
+                - PartiallyAllocated
+                - Failed
+                - Deallocating
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+{{- end }}

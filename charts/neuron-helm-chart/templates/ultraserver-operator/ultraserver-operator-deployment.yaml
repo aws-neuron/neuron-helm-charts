@@ -1,0 +1,90 @@
+{{- if .Values.ultraserverOperator.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "neuron-ultraserver-operator.fullname" . }}
+  namespace: {{ include "neuron-ultraserver-operator.namespace" . }}
+  labels:
+    app: {{ include "neuron-ultraserver-operator.fullname" . }}
+    {{- include "neuron-ultraserver-operator.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "neuron-ultraserver-operator.fullname" . }}
+  template:
+    metadata:
+      {{- with .Values.ultraserverOperator.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app: {{ include "neuron-ultraserver-operator.fullname" . }}
+        {{- include "neuron-ultraserver-operator.templateLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "neuron-ultraserver-operator.serviceAccountName" . }}
+      {{- with .Values.ultraserverOperator.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.ultraserverOperator.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.ultraserverOperator.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.ultraserverOperator.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.ultraserverOperator.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: neuron-ultraserver-operator
+        image: {{ include "neuron-ultraserver-operator.fullimage" . }}
+        imagePullPolicy: {{ .Values.ultraserverOperator.image.pullPolicy }}
+        command: ["k8s-neuron-ultraserver-operator"]
+        args:
+        - --leader-elect={{ .Values.ultraserverOperator.leaderElect }}
+        - --health-probe-bind-address=:{{ .Values.ultraserverOperator.healthPort }}
+        - --metrics-bind-address=:{{ .Values.ultraserverOperator.metricsPort }}
+        - -v={{ .Values.ultraserverOperator.verbosity }}
+        env:
+        - name: ENABLE_ULTRASERVER_OPERATOR
+          value: "true"
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        ports:
+        - name: metrics
+          containerPort: {{ .Values.ultraserverOperator.metricsPort }}
+          protocol: TCP
+        - name: health
+          containerPort: {{ .Values.ultraserverOperator.healthPort }}
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: health
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: health
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        {{- with .Values.ultraserverOperator.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      terminationGracePeriodSeconds: 10
+{{- end }}

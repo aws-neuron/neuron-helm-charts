@@ -26,6 +26,16 @@ rules:
   - apiGroups: [""]
     resources: ["nodes/status"]
     verbs: ["patch"]
+  {{- if .Values.ultraserverOperator.enabled }}
+  # Required for UltraServer controller to manage UltraServer resources
+  - apiGroups: ["neuron.aws.com"]
+    resources: ["neuronultraservers"]
+    verbs: ["get", "list", "watch"]
+  # Required to read UltraServer status with topology health
+  - apiGroups: ["neuron.aws.com"]
+    resources: ["neuronultraservers/status"]
+    verbs: ["get"]
+  {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
