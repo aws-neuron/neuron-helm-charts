@@ -1,0 +1,126 @@
+{{- if and .Values.observer.enabled .Values.observer.daemon.config.export.enabled }}
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: {{ include "neuron-observer-otel-daemon.fullname" . }}
+  namespace: {{ include "neuron-observer-otel-daemon.namespace" . }}
+spec:
+  mode: daemonset
+  serviceAccount: {{ .Values.observer.otel.serviceAccount.name }}
+  tolerations:
+    {{- toYaml .Values.observer.daemon.tolerations | nindent 4 }}
+  {{- with .Values.observer.daemon.nodeSelector }}
+  nodeSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.observer.daemon.affinity }}
+  # Same placement as the daemon, so every daemon has a local collector.
+  affinity:
+    {{- include "neuron-observer-daemon.affinity" $ | nindent 4 }}
+  {{- end }}
+  {{- with .Values.observer.otelDaemonCollector.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  config:
+    receivers:
+      otlp:
+        protocols:
+          http:
+            endpoint: "0.0.0.0:4318"
+    exporters:
+      {{- if .Values.observer.otelDaemonCollector.pipelines.cloudwatch.enabled }}
+      awsemf:
+        namespace: {{ .Values.observer.otelDaemonCollector.pipelines.cloudwatch.namespace | quote }}
+        region: {{ .Values.observer.otelDaemonCollector.awsRegion | quote }}
+        log_group_name: {{ .Values.observer.otelDaemonCollector.pipelines.cloudwatch.logGroupName | quote }}
+        log_stream_name: {{ .Values.observer.otelDaemonCollector.pipelines.cloudwatch.logStreamName | quote }}
+        dimension_rollup_option: "NoDimensionRollup"
+        resource_to_telemetry_conversion:
+          enabled: true
+        metric_declarations:
+          {{- if .Values.observer.otelDaemonCollector.pipelines.cloudwatch.metricDeclarationsOverride }}
+          {{- toYaml .Values.observer.otelDaemonCollector.pipelines.cloudwatch.metricDeclarationsOverride | nindent 10 }}
+          {{- else }}
+          # component/state become dimensions so alarms can target a fault
+          # class; sparse; series exist only while a device is unhealthy.
+          - dimensions:
+              - ["instance_id", "neuron_device_index", "component"]
+              - ["instance_id", "component"]
+              - ["component"]
+            metric_name_selectors:
+              - "^neuron.device_unhealthy_component$"
+          - dimensions:
+              - ["instance_id", "neuron_device_index", "state"]
+              - ["state"]
+            metric_name_selectors:
+              - "^neuron.device_health$"
+          - dimensions: [["instance_id", "neuron_device_index"], ["instance_id"]]
+            metric_name_selectors:
+              - "neuron.device.*"
+              - "neuron.device_health"
+              - "neuron.device_info"
+          - dimensions: [["instance_id", "neuron_device_index", "neuroncore"], ["instance_id"]]
+            metric_name_selectors:
+              - "neuron.core.*"
+          - dimensions: [["instance_id", "efa_device", "efa_port"]]
+            metric_name_selectors:
+              - "neuron.efa.*"
+          - dimensions: [["instance_id"]]
+            metric_name_selectors:
+              - "neuron.system.*"
+              - "neuron.system_info"
+          {{- end }}
+      {{- end }}
+      {{- if .Values.observer.otelDaemonCollector.pipelines.amp.enabled }}
+      prometheusremotewrite:
+        endpoint: {{ .Values.observer.otelDaemonCollector.pipelines.amp.endpoint | quote }}
+        auth:
+          authenticator: sigv4auth
+        resource_to_telemetry_conversion:
+          enabled: true
+      {{- end }}
+      {{- if .Values.observer.otelDaemonCollector.pipelines.otlp.enabled }}
+      otlphttp:
+        endpoint: {{ .Values.observer.otelDaemonCollector.pipelines.otlp.endpoint | quote }}
+      {{- end }}
+    {{- if .Values.observer.otelDaemonCollector.pipelines.cloudwatch.enabled }}
+    processors:
+      attributes/cloudwatch:
+        actions:
+          - key: aws.emf.storage_resolution
+            value: {{ .Values.observer.otelDaemonCollector.pipelines.cloudwatch.storageResolution }}
+            action: upsert
+    {{- end }}
+    extensions:
+      health_check:
+        endpoint: "0.0.0.0:13133"
+      {{- if .Values.observer.otelDaemonCollector.pipelines.amp.enabled }}
+      sigv4auth:
+        region: {{ .Values.observer.otelDaemonCollector.awsRegion | quote }}
+        service: "aps"
+      {{- end }}
+    service:
+      extensions:
+        - health_check
+        {{- if .Values.observer.otelDaemonCollector.pipelines.amp.enabled }}
+        - sigv4auth
+        {{- end }}
+      pipelines:
+        {{- if .Values.observer.otelDaemonCollector.pipelines.cloudwatch.enabled }}
+        metrics/cloudwatch:
+          receivers: [otlp]
+          processors: [attributes/cloudwatch]
+          exporters: [awsemf]
+        {{- end }}
+        {{- if .Values.observer.otelDaemonCollector.pipelines.amp.enabled }}
+        metrics/amp:
+          receivers: [otlp]
+          exporters: [prometheusremotewrite]
+        {{- end }}
+        {{- if .Values.observer.otelDaemonCollector.pipelines.otlp.enabled }}
+        metrics/otlp:
+          receivers: [otlp]
+          exporters: [otlphttp]
+        {{- end }}
+{{- end }}

@@ -1,0 +1,89 @@
+{{- /*
+`helm test` hook: verify the Neuron Observer reference alert rules actually
+loaded in Prometheus. Polls the Prometheus /api/v1/rules API and asserts every
+configured rule group is present in the rule file the operator generated for
+this release's PrometheusRule — which proves the chart created the rule, the
+operator selected it by its labels, and the PromQL parsed (a rejected group
+never appears in /api/v1/rules).
+
+Opt-in (observer.monitoring.prometheusRule.test.enabled) because it depends on
+a reachable Prometheus server; it also only renders when the PrometheusRule
+itself would (see "neuron-observer.prometheusRuleEnabled" in _helpers.tpl).
+Pure busybox + wget with no RBAC, matching the other observer test hooks.
+*/ -}}
+{{- $rule := .Values.observer.monitoring.prometheusRule }}
+{{- if and .Values.observer.enabled $rule.test.enabled (eq (include "neuron-observer.prometheusRuleEnabled" .) "true") }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "neuron-observer-daemon.fullname" . }}-test-prometheus-rules"
+  namespace: {{ include "neuron-observer-daemon.namespace" . }}
+  # Distinct labels so no controller's selector reaps this pod.
+  labels:
+    app.kubernetes.io/name: {{ include "neuron-observer-daemon.name" . }}-test
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: test
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    "helm.sh/hook": test
+    # Delete a prior test pod before re-creating, so `helm test` reruns don't
+    # collide with the immutable existing pod.
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  restartPolicy: Never
+  # Backstop reap even if the poll loop never exits. Derived from DEADLINE_SECS
+  # so the script's own timeout always wins and prints its failure first.
+  activeDeadlineSeconds: {{ add $rule.test.deadlineSecs 30 }}
+  containers:
+    - name: test-prometheus-rules
+      image: public.ecr.aws/docker/library/busybox:1.36.1
+      env:
+        - name: URL
+          value: {{ $rule.test.prometheusUrl | quote }}
+        - name: DEADLINE_SECS
+          value: {{ $rule.test.deadlineSecs | quote }}
+        - name: INTERVAL_SECS
+          value: {{ $rule.test.intervalSecs | quote }}
+        # Every configured rule group; all must appear in /api/v1/rules.
+        - name: RULE_GROUPS
+          value: {{ include "neuron-observer.prometheusRuleGroupNames" . | quote }}
+        # The operator writes each PrometheusRule to a file named
+        # <namespace>-<rule name>-<uid>.yaml (older operators: no -<uid>), so
+        # matching this stem ties a group to this release's rule rather than a
+        # same-named group elsewhere.
+        - name: RULE_FILE_STEM
+          value: "{{ include "neuron-observer-daemon.namespace" . }}-{{ include "neuron-observer-daemon.fullname" . }}-rules"
+      command: ['sh', '-c']
+      args:
+        - |
+          # Poll until every configured rule group shows up in Prometheus, or
+          # the deadline elapses. The operator takes a moment to reconcile a
+          # new PrometheusRule into the Prometheus config, so a one-shot check
+          # is not reliable.
+          echo "Polling ${URL}/api/v1/rules for up to ${DEADLINE_SECS}s..."
+          end=$(( $(date +%s) + DEADLINE_SECS ))
+          while :; do
+            body=$(wget -q -O- --timeout=5 "${URL}/api/v1/rules") && {
+              missing=""
+              # Prometheus emits each group as {"name":"<g>","file":"<path>",...}.
+              # Pull out just the name/file pairs, then match fixed strings so
+              # group names are never treated as regex.
+              pairs=$(printf '%s' "$body" | grep -oE '"name":"[^"]*","file":"[^"]*"')
+              for g in $RULE_GROUPS; do
+                printf '%s\n' "$pairs" | grep -F "\"name\":\"$g\",\"file\":" \
+                  | grep -qE "/${RULE_FILE_STEM}(-[^/\"]*)?\.yaml\"$" \
+                  || missing="$missing $g"
+              done
+              if [ -z "$missing" ]; then
+                echo "OK: all Neuron Observer rule groups loaded in Prometheus"
+                exit 0
+              fi
+              echo "waiting: missing groups:$missing"
+            } || echo "waiting: Prometheus rules API unreachable at $URL"
+            [ "$(date +%s)" -ge "$end" ] && {
+              echo "FAIL: Neuron Observer rule groups not loaded within ${DEADLINE_SECS}s"
+              exit 1
+            }
+            sleep "$INTERVAL_SECS"
+          done
+{{- end }}

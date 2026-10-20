@@ -53,7 +53,7 @@ spec:
               instanceType:
                 description: |-
                   InstanceType specifies the AWS EC2 instance type of the nodes in this ultraserver.
-                  Examples: "trn3-dev0.48xlarge"
+                  Examples: "trn3n.48xlarge"
                 maxLength: 253
                 minLength: 1
                 pattern: ^[a-zA-Z0-9][a-zA-Z0-9.\-]*$
@@ -350,7 +350,7 @@ spec:
                 description: |-
                   InstanceType specifies the AWS EC2 instance type required for this workload.
                   This is used to match the workload with compatible NeuronUltraServers.
-                  Examples: "trn3-dev0.48xlarge"
+                  Examples: "trn3n.48xlarge"
                 type: string
               resourceClaimTemplate:
                 description: |-

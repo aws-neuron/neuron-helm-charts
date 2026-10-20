@@ -18,6 +18,7 @@ declare -A REPOSITORIES=(
     ["public.ecr.aws/neuron/neuron-node-recovery"]="npd.nodeRecovery.image.tag"
     ["public.ecr.aws/neuron/neuron-dra-driver"]="draDriver.image.tag"
     ["public.ecr.aws/neuron/neuron-ultraserver-operator"]="ultraserverOperator.image.tag"
+    ["public.ecr.aws/neuron/neuron-observer"]="observer.image.tag"
     ["registry.k8s.io/node-problem-detector/node-problem-detector"]="npd.nodeProblemDetector.image.tag"
 )
 
@@ -79,18 +80,33 @@ update_yaml_value() {
     local yaml_path=$1
     local new_value=$2
     
-    # Get current value
+    # Get current value. A failed read (e.g. wrong yq, bad path) must be a
+    # hard failure (return 1), NOT confused with "no change needed".
     local current_value
-    current_value=$(yq eval ".${yaml_path}" "$VALUES_FILE")
+    if ! current_value=$(yq eval ".${yaml_path}" "$VALUES_FILE" 2>/dev/null); then
+        return 1  # read failed
+    fi
     
     # Skip update if value is already the same
     if [[ "$current_value" == "$new_value" ]]; then
         return 2  # Return special code to indicate no change needed
     fi
     
-    # Update yaml value
-    yq eval ".${yaml_path} = \"${new_value}\"" -i "$VALUES_FILE"
-    return $?
+    # Update yaml value. Never propagate yq's raw exit code directly, since a
+    # failure exit (e.g. 2) would collide with the "no change needed".
+    if ! yq eval ".${yaml_path} = \"${new_value}\"" -i "$VALUES_FILE" 2>/dev/null; then
+        return 1  # write failed
+    fi
+    
+    # Verify the write actually took effect. This catches silent no-ops from a
+    # wrong/incompatible yq that exits 0 without editing the file.
+    local verified_value
+    verified_value=$(yq eval ".${yaml_path}" "$VALUES_FILE" 2>/dev/null)
+    if [[ "$verified_value" != "$new_value" ]]; then
+        return 1  # write did not apply
+    fi
+    
+    return 0
 }
 
 update_readme_value() {
@@ -158,6 +174,17 @@ check_dependencies() {
         if [[ " ${missing_required[*]} " =~ " yq " ]]; then
             print_status "$YELLOW" "  Install yq: https://github.com/mikefarah/yq#install"
         fi
+        exit 1
+    fi
+    
+    # This script relies on mikefarah/yq (Go) v4 syntax ('yq eval ... -i').
+    # The similarly-named python yq (kislyuk) has an incompatible CLI and would
+    # fail to edit values.yaml, so reject it explicitly with a clear message.
+    if ! yq --version 2>&1 | grep -qi 'mikefarah'; then
+        print_status "$RED" "ERROR: The 'yq' on your PATH is not mikefarah/yq (Go)."
+        print_status "$RED" "  Found: $(command -v yq) -> $(yq --version 2>&1 | head -1)"
+        print_status "$YELLOW" "  This script requires mikefarah/yq v4."
+        print_status "$YELLOW" "  Install it: https://github.com/mikefarah/yq#install"
         exit 1
     fi
 }

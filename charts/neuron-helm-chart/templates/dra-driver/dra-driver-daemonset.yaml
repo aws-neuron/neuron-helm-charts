@@ -1,4 +1,5 @@
 {{- include "neuron-helm-chart.validateConfig" . -}}
+{{- include "neuron-dra-driver.validateObserver" . -}}
 {{- if .Values.draDriver.enabled }}
 # https://kubernetes.io/docs/concepts/scheduling-eviction/dynamic-resource-allocation/
 apiVersion: apps/v1
@@ -69,6 +70,16 @@ spec:
         - name: ENABLE_ULTRASERVER_OPERATOR
           value: "true"
         {{- end }}
+        {{- if .Values.draDriver.deviceHealthMonitoring.enabled }}
+        - name: ENABLE_DEVICE_HEALTH_MONITORING
+          value: "true"
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: NEURON_TAINT_POLICY_PATH
+          value: "/etc/neuron-dra/taint-policy/policy.yaml"
+        {{- end }}
         {{- if .Values.draDriver.securityContext }}
         securityContext:
           {{- include "neuron-dra-driver.securityContext" . | nindent 10 }}
@@ -77,16 +88,33 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-        {{- with .Values.draDriver.volumeMounts }}
+        {{- if or .Values.draDriver.volumeMounts .Values.draDriver.deviceHealthMonitoring.enabled }}
         volumeMounts:
+          {{- with .Values.draDriver.volumeMounts }}
           {{- toYaml . | nindent 10 }}
+          {{- end }}
+          {{- if .Values.draDriver.deviceHealthMonitoring.enabled }}
+          # Directory mount (no subPath) so the driver sees ConfigMap updates.
+          - name: taint-policy
+            mountPath: /etc/neuron-dra/taint-policy
+            readOnly: true
+          {{- end }}
         {{- end }}
         {{- with .Values.draDriver.livenessProbe }}
         livenessProbe:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-      {{- with .Values.draDriver.volumes }}
+      {{- if or .Values.draDriver.volumes .Values.draDriver.deviceHealthMonitoring.enabled }}
       volumes:
+        {{- with .Values.draDriver.volumes }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.draDriver.deviceHealthMonitoring.enabled }}
+        # Optional taint-policy override; optional so the pod starts without it.
+        - name: taint-policy
+          configMap:
+            name: neuron-dra-taint-policy
+            optional: true
+        {{- end }}
       {{- end }}
 {{- end }}

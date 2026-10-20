@@ -1,0 +1,44 @@
+{{- /*
+Scrape the daemon's always-on native Prometheus /metrics endpoint directly.
+The daemon is a hostNetwork DaemonSet with no Service, so this is a PodMonitor
+(not a ServiceMonitor) targeting the pod's own API port. It is independent of
+OTLP export (daemon.config.export.enabled) — the /metrics endpoint is always
+served.
+
+Rendered only when the prometheus-operator CRD (monitoring.coreos.com/v1) is
+installed, so `helm install` still succeeds on clusters without
+kube-prometheus-stack — those users just get no auto-discovery. Override the
+auto-detection by explicitly setting observer.monitoring.podMonitor.enabled to
+true/false. Labels come from observer.monitoring (see
+"neuron-observer.monitoring.labels" in _helpers.tpl).
+*/ -}}
+{{- if .Values.observer.enabled }}
+{{- if eq (include "neuron-observer-daemon.podMonitorEnabled" .) "true" }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "neuron-observer-daemon.fullname" . }}
+  namespace: {{ include "neuron-observer-daemon.namespace" . }}
+  labels:
+    {{- include "neuron-observer.monitoring.labels" (list . .Values.observer.monitoring.podMonitor (include "neuron-observer-daemon.labels" .)) | nindent 4 }}
+spec:
+  # Set the scraped series' `job` label from the pod's name label, so it is a
+  # stable `neuron-observer` rather than the default `<namespace>/<monitor>`.
+  # The shipped Grafana dashboards filter on `job`.
+  jobLabel: app.kubernetes.io/name
+  namespaceSelector:
+    matchNames:
+      - {{ include "neuron-observer-daemon.namespace" . }}
+  selector:
+    matchLabels:
+      {{- include "neuron-observer-daemon.selectorLabels" . | nindent 6 }}
+  podMetricsEndpoints:
+    # The daemon serves Prometheus text on its API port (named "http").
+    - port: http
+      path: /metrics
+      interval: {{ .Values.observer.monitoring.podMonitor.interval | default "30s" }}
+      {{- if .Values.observer.monitoring.podMonitor.scrapeTimeout }}
+      scrapeTimeout: {{ .Values.observer.monitoring.podMonitor.scrapeTimeout }}
+      {{- end }}
+{{- end }}
+{{- end }}

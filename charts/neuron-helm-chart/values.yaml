@@ -1,4 +1,4 @@
-neuronInstances: [trn1.2xlarge, trn1.32xlarge, trn1n.32xlarge, trn2.3xlarge, trn2.48xlarge, trn2u.48xlarge, trn3.48xlarge, trn3e.24xlarge, inf1.xlarge, inf1.2xlarge, inf1.6xlarge, inf1.24xlarge, inf2.xlarge, inf2.8xlarge, inf2.24xlarge, inf2.48xlarge, ml.inf2.xlarge, ml.inf2.8xlarge, ml.inf2.24xlarge, ml.inf2.48xlarge, ml.trn1.2xlarge, ml.trn1.32xlarge, ml.trn1n.32xlarge]
+neuronInstances: [trn1.2xlarge, trn1.32xlarge, trn1n.32xlarge, trn2.3xlarge, trn2.48xlarge, trn2u.48xlarge, trn3.48xlarge, trn3n.48xlarge, trn3en.24xlarge, trn3s-es.48xlarge, inf1.xlarge, inf1.2xlarge, inf1.6xlarge, inf1.24xlarge, inf2.xlarge, inf2.8xlarge, inf2.24xlarge, inf2.48xlarge, ml.inf2.xlarge, ml.inf2.8xlarge, ml.inf2.24xlarge, ml.inf2.48xlarge, ml.trn1.2xlarge, ml.trn1.32xlarge, ml.trn1n.32xlarge]
 draDriver:
   enabled: false
   nameOverride: neuron-dra-driver
@@ -11,7 +11,7 @@ draDriver:
   image:
     repository: public.ecr.aws/neuron/neuron-dra-driver
     pullPolicy: IfNotPresent
-    tag: "1.2.0"
+    tag: "1.3.0"
   podSecurityContext: {}
   serviceAccount:
     create: true
@@ -98,6 +98,8 @@ draDriver:
     periodSeconds: 10
     initialDelaySeconds: 30
     timeoutSeconds: 5
+  deviceHealthMonitoring:
+    enabled: false
 devicePlugin:
   enabled: true
   nameOverride: neuron-device-plugin
@@ -253,7 +255,7 @@ ultraserverOperator:
   image:
     repository: public.ecr.aws/neuron/neuron-ultraserver-operator
     pullPolicy: IfNotPresent
-    tag: "0.2.0"
+    tag: "0.3.0"
   serviceAccount:
     create: true
     annotations: {}
@@ -298,12 +300,6 @@ npd:
               {
                   "type": "permanent",
                   "condition": "NeuronHealth",
-                  "reason": "NeuronHasError_SRAM_UNCORRECTABLE_ERROR",
-                  "pattern": ".* NEURON_HW_ERR=SRAM_UNCORRECTABLE_ERROR .*"
-              },
-              {
-                  "type": "permanent",
-                  "condition": "NeuronHealth",
                   "reason": "NeuronHasError_NC_UNCORRECTABLE_ERROR",
                   "pattern": ".* NEURON_HW_ERR=NC_UNCORRECTABLE_ERROR .*"
               },
@@ -344,7 +340,7 @@ npd:
     image:
       repository: registry.k8s.io/node-problem-detector/node-problem-detector
       pullPolicy: IfNotPresent
-      tag: "v1.35.2"
+      tag: "v1.37.0"
       command:
         - /bin/sh
         - -c
@@ -392,7 +388,7 @@ npd:
     image:
       repository: public.ecr.aws/neuron/neuron-node-recovery
       pullPolicy: IfNotPresent
-      tag: "1.12.0"
+      tag: "1.13.0"
     resources:
       limits:
         cpu: 10m
@@ -403,8 +399,176 @@ npd:
     counters:
       - NeuronHasError_DMA_ERROR
       - NeuronHasError_HBM_UNCORRECTABLE_ERROR
-      - NeuronHasError_SRAM_UNCORRECTABLE_ERROR
       - NeuronHasError_NC_UNCORRECTABLE_ERROR
     extraEnvs:
       - name: AWS_STS_REGIONAL_ENDPOINTS
         value: "regional"
+# Neuron Observer: daemon and optional OTel collector.
+observer:
+  enabled: false
+  image:
+    repository: public.ecr.aws/neuron/neuron-observer
+    pullPolicy: IfNotPresent
+    tag: "0.2.0"
+  namespace:
+    create: false
+  # Monitoring integrations. The PodMonitor is created when the
+  # monitoring.coreos.com/v1 CRD exists; set enabled to override.
+  monitoring:
+    # `release` label used by kube-prometheus-stack selectors ("" omits it).
+    releaseLabel: monitoring
+    additionalLabels: {}
+    # Reference Grafana dashboards packaged as ConfigMaps for sidecar discovery.
+    grafanaDashboards:
+      enabled: false
+      # The namespace must exist and be watched by the Grafana sidecar.
+      namespace: monitoring
+      label: grafana_dashboard
+      labelValue: "1"
+      additionalLabels: {}
+      annotations: {}
+    podMonitor:
+      enabled: null
+      interval: 30s
+      # Optional endpoint and label overrides.
+      # scrapeTimeout: 10s
+      # releaseLabel: monitoring
+      additionalLabels: {}
+    # Reference alerts (templates/observer/monitoring/prometheusrule.yaml). Opt-in; requires the PodMonitor.
+    prometheusRule:
+      enabled: false
+      # Optional override; unset inherits monitoring.releaseLabel.
+      # releaseLabel: monitoring
+      additionalLabels: {}
+      # `helm test` that checks the rules loaded in Prometheus.
+      test:
+        enabled: false
+        prometheusUrl: "http://prometheus-operated.monitoring:9090"
+        deadlineSecs: 60
+        intervalSecs: 5
+  daemon:
+    # Also the scraped `job` label used by the reference alerts.
+    nameOverride: neuron-observer
+    namespaceOverride: neuron-observer
+    fullnameOverride: neuron-observer
+    selectorLabelsOverride: {}
+    priorityClassName: null
+    imagePullSecrets: []
+    serviceAccount:
+      create: true
+      name: neuron-observer
+      annotations: {}
+    updateStrategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 1
+    # Size of the in-memory /tmp used by the health check.
+    tmpSizeLimit: 64Mi
+    # Required for EFA metrics.
+    hostNetwork: true
+    podAnnotations: {}
+    podSecurityContext: {}
+    securityContext:
+      privileged: true
+      readOnlyRootFilesystem: true
+    resources:
+      requests:
+        cpu: 250m
+        memory: 128Mi
+    # Label applied by the Neuron device plugin or DRA driver.
+    nodeSelector:
+      neuron.amazonaws.com/present: "true"
+    tolerations:
+      - key: aws.amazon.com/neuron
+        operator: Exists
+        effect: NoSchedule
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: "__INSTANCE_TYPE_KEY__"
+                  operator: In
+                  values: "__NEURON_INSTANCES__"
+    env:
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            fieldPath: spec.nodeName
+    extraVolumeMounts: []
+    extraVolumes: []
+    livenessProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+    readinessProbe:
+      httpGet:
+        path: /readyz
+        port: http
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+    config:
+      collection:
+        interval_secs: 5
+        proc_path: "/host-proc"
+        sources:
+          device: true
+          sysfs: true
+          system: true
+          imds: true
+        latency_stream:
+          enabled: true
+          poll_interval_us: 50
+      export:
+        enabled: false
+        interval_secs: 5
+      logging:
+        level: "info"
+        format: "json"
+      daemon:
+        listen_address: "0.0.0.0"
+        port: 7001
+        shutdown_timeout_secs: 5
+      emulation:
+        enabled: false
+  # OTel collector ServiceAccount. Add an IRSA role ARN for CloudWatch/AMP, e.g.
+  # eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/neuron-observer-otel
+  otel:
+    serviceAccount:
+      create: true
+      name: neuron-observer-otel
+      annotations: {}
+  # Deployed when daemon.config.export.enabled is true.
+  otelDaemonCollector:
+    namespaceOverride: neuron-observer
+    fullnameOverride: neuron-observer-daemon
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+    awsRegion: "" # required for cloudwatch/amp, e.g. us-west-2
+    pipelines:
+      cloudwatch:
+        enabled: false
+        namespace: "NeuronObserver"
+        logGroupName: "/metrics/neuron-observer"
+        logStreamName: "otel-metrics"
+        storageResolution: 1
+        # Replaces the default awsemf metric_declarations, e.g.
+        # [{dimensions: [["instance_id", "neuron_device_index"]], metric_name_selectors: ["neuron.device.*"]}]
+        metricDeclarationsOverride: null
+      amp:
+        enabled: false
+        endpoint: "" # e.g. https://aps-workspaces.us-west-2.amazonaws.com/workspaces/ws-XXXX/api/v1/remote_write
+      otlp:
+        enabled: false
+        endpoint: "" # e.g. http://localhost:4319

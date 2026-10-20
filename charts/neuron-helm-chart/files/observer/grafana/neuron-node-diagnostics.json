@@ -1,0 +1,1709 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 100,
+      "title": "Overview",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "neuron_system_neuron_device_count{instance_id=~\"$node\", job=~\"$job\"}",
+          "legendFormat": "Devices",
+          "refId": "A"
+        }
+      ],
+      "title": "Neuron Devices",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "neuron_system_physical_neuroncore_count{instance_id=~\"$node\", job=~\"$job\"}",
+          "legendFormat": "NeuronCores",
+          "refId": "A"
+        }
+      ],
+      "title": "NeuronCores",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.7
+              },
+              {
+                "color": "red",
+                "value": 0.9
+              }
+            ]
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "avg(neuron_core_utilization_avg{instance_id=~\"$node\", job=~\"$job\"})",
+          "legendFormat": "Avg Utilization",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg Core Utilization",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "neuron_system_cpu_average_usage_percent{instance_id=~\"$node\",job=~\"$job\"}",
+          "legendFormat": "CPU",
+          "refId": "A"
+        }
+      ],
+      "title": "CPU Usage",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "purple",
+                "value": null
+              }
+            ]
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "id": 5,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "neuron_system_memory_used_bytes{instance_id=~\"$node\",job=~\"$job\"}",
+          "legendFormat": "Used",
+          "refId": "A"
+        }
+      ],
+      "title": "Memory Used",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "semi-dark-blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "neuron_system_memory_total_bytes{instance_id=~\"$node\",job=~\"$job\"}",
+          "legendFormat": "Total",
+          "refId": "A"
+        }
+      ],
+      "title": "Memory Total",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "id": 101,
+      "title": "Performance",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.7
+              },
+              {
+                "color": "red",
+                "value": 0.9
+              }
+            ]
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "neuron_core_utilization_avg{instance_id=~\"$node\", neuron_device_index=~\"$device\", job=~\"$job\"}",
+          "legendFormat": "dev{{neuron_device_index}}-core{{neuroncore}}",
+          "refId": "A"
+        }
+      ],
+      "title": "NeuronCore Utilization",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "unit": "flops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "neuron_core_effective_flops_sum{instance_id=~\"$node\", neuron_device_index=~\"$device\", job=~\"$job\"}",
+          "legendFormat": "dev{{neuron_device_index}}-core{{neuroncore}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Effective FLOPS",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
+      "id": 103,
+      "title": "Device Memory",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 15
+      },
+      "id": 11,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(neuron_core_device_mem_tensors_sum_bytes{instance_id=~\"$node\", neuron_device_index=~\"$device\", job=~\"$job\"})",
+          "legendFormat": "tensors",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(neuron_core_device_mem_model_code_sum_bytes{instance_id=~\"$node\", neuron_device_index=~\"$device\", job=~\"$job\"})",
+          "legendFormat": "model_code",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(neuron_core_device_mem_constants_sum_bytes{instance_id=~\"$node\", neuron_device_index=~\"$device\", job=~\"$job\"})",
+          "legendFormat": "constants",
+          "refId": "C"
+        },
+        {
+          "expr": "sum(neuron_core_device_mem_runtime_memory_sum_bytes{instance_id=~\"$node\", neuron_device_index=~\"$device\", job=~\"$job\"})",
+          "legendFormat": "runtime",
+          "refId": "D"
+        },
+        {
+          "expr": "sum(neuron_core_device_mem_collectives_sum_bytes{instance_id=~\"$node\", neuron_device_index=~\"$device\", job=~\"$job\"})",
+          "legendFormat": "collectives",
+          "refId": "E"
+        },
+        {
+          "expr": "sum(neuron_core_device_mem_model_shared_scratchpad_sum_bytes{instance_id=~\"$node\", neuron_device_index=~\"$device\", job=~\"$job\"})",
+          "legendFormat": "shared_scratchpad",
+          "refId": "F"
+        },
+        {
+          "expr": "sum(neuron_core_device_mem_nonshared_scratchpad_sum_bytes{instance_id=~\"$node\", neuron_device_index=~\"$device\", job=~\"$job\"})",
+          "legendFormat": "scratchpad",
+          "refId": "G"
+        },
+        {
+          "expr": "sum(neuron_core_device_mem_dma_rings_sum_bytes{instance_id=~\"$node\", neuron_device_index=~\"$device\", job=~\"$job\"})",
+          "legendFormat": "dma_rings",
+          "refId": "H"
+        }
+      ],
+      "title": "Device Memory Breakdown (Stacked)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 15
+      },
+      "id": 12,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(neuron_device_host_mem_tensors_sum_bytes{instance_id=~\"$node\", job=~\"$job\"})",
+          "legendFormat": "tensors",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(neuron_device_host_mem_dma_buffers_sum_bytes{instance_id=~\"$node\", job=~\"$job\"})",
+          "legendFormat": "dma_buffers",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(neuron_device_host_mem_constants_sum_bytes{instance_id=~\"$node\", job=~\"$job\"})",
+          "legendFormat": "constants",
+          "refId": "C"
+        },
+        {
+          "expr": "sum(neuron_device_host_mem_application_memory_sum_bytes{instance_id=~\"$node\", job=~\"$job\"})",
+          "legendFormat": "application",
+          "refId": "D"
+        },
+        {
+          "expr": "sum(neuron_device_host_mem_driver_memory_sum_bytes{instance_id=~\"$node\", job=~\"$job\"})",
+          "legendFormat": "driver",
+          "refId": "E"
+        },
+        {
+          "expr": "sum(neuron_device_host_mem_dma_rings_sum_bytes{instance_id=~\"$node\", job=~\"$job\"})",
+          "legendFormat": "dma_rings",
+          "refId": "F"
+        },
+        {
+          "expr": "sum(neuron_device_host_mem_notifications_sum_bytes{instance_id=~\"$node\", job=~\"$job\"})",
+          "legendFormat": "notifications",
+          "refId": "G"
+        }
+      ],
+      "title": "Host Memory Breakdown (Stacked)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
+      "id": 13,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "showUnfilled": true
+      },
+      "targets": [
+        {
+          "expr": "sum by (instance_id) ({__name__=~\"neuron_core_device_mem_.+_sum_bytes\", instance_id=~\"$node\", job=~\"$job\"})",
+          "legendFormat": "{{instance_id}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Device Memory Used",
+      "type": "bargauge"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "id": 104,
+      "title": "Errors & Reliability",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(neuron_device_mem_ecc_unrepairable_uncorrected_sum_total{instance_id=~\"$node\", job=~\"$job\"}[$__rate_interval])",
+          "legendFormat": "mem unrepairable",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(neuron_device_mem_ecc_repairable_uncorrected_sum_total{instance_id=~\"$node\", job=~\"$job\"}[$__rate_interval])",
+          "legendFormat": "mem repairable",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(neuron_device_mem_ecc_corrected_sum_total{instance_id=~\"$node\", job=~\"$job\"}[$__rate_interval])",
+          "legendFormat": "mem corrected",
+          "refId": "C"
+        },
+        {
+          "expr": "rate(neuron_device_sram_ecc_uncorrected_sum_total{instance_id=~\"$node\", job=~\"$job\"}[$__rate_interval])",
+          "legendFormat": "sram uncorrected",
+          "refId": "D"
+        },
+        {
+          "expr": "rate(neuron_device_sram_ecc_corrected_sum_total{instance_id=~\"$node\", job=~\"$job\"}[$__rate_interval])",
+          "legendFormat": "sram corrected",
+          "refId": "E"
+        }
+      ],
+      "title": "Hardware ECC Errors",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "id": 15,
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(neuron_core_reset_req_count_sum_total{instance_id=~\"$node\", neuron_device_index=~\"$device\", job=~\"$job\"}[$__rate_interval]))",
+          "legendFormat": "reset requests/s",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(neuron_core_reset_fail_count_sum_total{instance_id=~\"$node\", neuron_device_index=~\"$device\", job=~\"$job\"}[$__rate_interval]))",
+          "legendFormat": "reset failures/s",
+          "refId": "B"
+        }
+      ],
+      "title": "Core Resets",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 40
+      },
+      "id": 105,
+      "title": "System",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 41
+      },
+      "id": 16,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "neuron_system_context_switch_count{instance_id=~\"$node\",job=~\"$job\"}",
+          "legendFormat": "ctx switches",
+          "refId": "A"
+        }
+      ],
+      "title": "Context Switches",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 41
+      },
+      "id": 17,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "neuron_system_swap_used_bytes{instance_id=~\"$node\",job=~\"$job\"}",
+          "legendFormat": "swap used",
+          "refId": "A"
+        },
+        {
+          "expr": "neuron_system_swap_total_bytes{instance_id=~\"$node\",job=~\"$job\"}",
+          "legendFormat": "swap total",
+          "refId": "B"
+        }
+      ],
+      "title": "Swap Usage",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 49
+      },
+      "id": 108,
+      "title": "Inference",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Inference throughput rate.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 50
+      },
+      "id": 18,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(neuron_core_infer_completed_sum_total{instance_id=~\"$node\", job=~\"$job\"}[$__rate_interval]))",
+          "legendFormat": "total inf/s",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(neuron_core_inference_count_sum_total{instance_id=~\"$node\", job=~\"$job\"}[$__rate_interval]))",
+          "legendFormat": "total count/s",
+          "refId": "B"
+        }
+      ],
+      "title": "Inference Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "End-to-end and device-side inference latency.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "unit": "s"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*p99.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*p50.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*avg.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    4,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 50
+      },
+      "id": 19,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "neuron_core_latency_total_system_p99_seconds{instance_id=~\"$node\", job=~\"$job\"}",
+          "legendFormat": "total p99",
+          "refId": "A"
+        },
+        {
+          "expr": "neuron_core_latency_total_system_p50_seconds{instance_id=~\"$node\", job=~\"$job\"}",
+          "legendFormat": "total p50",
+          "refId": "B"
+        },
+        {
+          "expr": "neuron_core_latency_total_system_avg_seconds{instance_id=~\"$node\", job=~\"$job\"}",
+          "legendFormat": "total avg",
+          "refId": "C"
+        },
+        {
+          "expr": "neuron_core_latency_device_system_p99_seconds{instance_id=~\"$node\", job=~\"$job\"}",
+          "legendFormat": "device p99",
+          "refId": "D"
+        },
+        {
+          "expr": "neuron_core_latency_device_system_avg_seconds{instance_id=~\"$node\", job=~\"$job\"}",
+          "legendFormat": "device avg",
+          "refId": "E"
+        }
+      ],
+      "title": "Inference Latency (avg/p50/p99)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 58
+      },
+      "id": 110,
+      "title": "Device Health",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Authoritative per-device health verdicts. Devices with unknown health or legacy drivers without the health sysfs tree emit no row; confirm gaps with `nobs devices`.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 59
+      },
+      "id": 23,
+      "options": {
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "expr": "neuron_device_health{instance_id=~\"$node\",neuron_device_index=~\"$device\",job=~\"$job\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Device Health State",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "job": true
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "One row per failing device component. An empty table is expected when every reporting device is healthy.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 59
+      },
+      "id": 24,
+      "options": {
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "expr": "neuron_device_unhealthy_component{instance_id=~\"$node\",neuron_device_index=~\"$device\",job=~\"$job\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Unhealthy Components",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "job": true
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 67
+      },
+      "id": 111,
+      "title": "EFA Connectivity",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Transmit and receive throughput per EFA interface.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "min": 0,
+          "unit": "Bps"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 68
+      },
+      "id": 25,
+      "options": {
+        "legend": {
+          "calcs": [
+            "max",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(neuron_efa_rx_bytes_total{instance_id=~\"$node\",job=~\"$job\"}[$__rate_interval])",
+          "legendFormat": "{{efa_device}}:{{efa_port}} rx",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(neuron_efa_tx_bytes_total{instance_id=~\"$node\",job=~\"$job\"}[$__rate_interval])",
+          "legendFormat": "{{efa_device}}:{{efa_port}} tx",
+          "refId": "B"
+        }
+      ],
+      "title": "EFA Throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Packet drops and failed RDMA work requests per interface. Sustained non-zero rates identify the interface to investigate.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "min": 0,
+          "unit": "ops"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 68
+      },
+      "id": 26,
+      "options": {
+        "legend": {
+          "calcs": [
+            "max",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(neuron_efa_rx_drops_total{instance_id=~\"$node\",job=~\"$job\"}[$__rate_interval])",
+          "legendFormat": "{{efa_device}}:{{efa_port}} rx drops/s",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(neuron_efa_rdma_read_wr_err_total{instance_id=~\"$node\",job=~\"$job\"}[$__rate_interval])",
+          "legendFormat": "{{efa_device}}:{{efa_port}} read errors/s",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(neuron_efa_rdma_write_wr_err_total{instance_id=~\"$node\",job=~\"$job\"}[$__rate_interval])",
+          "legendFormat": "{{efa_device}}:{{efa_port}} write errors/s",
+          "refId": "C"
+        }
+      ],
+      "title": "EFA Drops & RDMA Errors",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "SRD reliability events over the Grafana rate interval. These counters are absent on pre-Nitro-v4 instances.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 30,
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "min": 0,
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 68
+      },
+      "id": 27,
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "increase(neuron_efa_retrans_timeout_events_total{instance_id=~\"$node\",job=~\"$job\"}[$__rate_interval])",
+          "legendFormat": "{{efa_device}}:{{efa_port}} retransmit timeouts",
+          "refId": "A"
+        },
+        {
+          "expr": "increase(neuron_efa_impaired_remote_conn_events_total{instance_id=~\"$node\",job=~\"$job\"}[$__rate_interval])",
+          "legendFormat": "{{efa_device}}:{{efa_port}} impaired remote",
+          "refId": "B"
+        },
+        {
+          "expr": "increase(neuron_efa_unresponsive_remote_events_total{instance_id=~\"$node\",job=~\"$job\"}[$__rate_interval])",
+          "legendFormat": "{{efa_device}}:{{efa_port}} unresponsive remote",
+          "refId": "C"
+        }
+      ],
+      "title": "EFA SRD Reliability Events",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": [
+    "neuron",
+    "trainium",
+    "ml",
+    "single-node"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "Prometheus",
+          "value": "prometheus"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Data Source",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "type": "datasource"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(neuron_system_neuron_device_count, job)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Scrape Job",
+        "multi": true,
+        "name": "job",
+        "query": {
+          "query": "label_values(neuron_system_neuron_device_count, job)"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(neuron_system_neuron_device_count{job=~\"$job\"}, instance_id)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Node",
+        "multi": false,
+        "name": "node",
+        "query": {
+          "query": "label_values(neuron_system_neuron_device_count{job=~\"$job\"}, instance_id)"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(neuron_device_info{instance_id=~\"$node\", job=~\"$job\"}, neuron_device_index)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Device",
+        "multi": true,
+        "name": "device",
+        "query": {
+          "query": "label_values(neuron_device_info{instance_id=~\"$node\", job=~\"$job\"}, neuron_device_index)"
+        },
+        "refresh": 2,
+        "sort": 3,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Neuron Node Diagnostics",
+  "uid": "neuron-node-diagnostics",
+  "version": 1
+}
