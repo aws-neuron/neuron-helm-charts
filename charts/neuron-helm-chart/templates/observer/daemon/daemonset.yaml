@@ -1,0 +1,131 @@
+{{- if .Values.observer.enabled }}
+{{- include "neuron-observer.validateConfig" . -}}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "neuron-observer-daemon.fullname" . }}
+  namespace: {{ include "neuron-observer-daemon.namespace" . }}
+  labels:
+    {{- include "neuron-observer-daemon.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "neuron-observer-daemon.selectorLabels" . | nindent 6 }}
+  {{- with .Values.observer.daemon.updateStrategy }}
+  updateStrategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/observer/daemon/configmap.yaml") . | sha256sum }}
+        {{- with .Values.observer.daemon.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "neuron-observer-daemon.templateLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "neuron-observer-daemon.serviceAccountName" . }}
+      {{- with .Values.observer.daemon.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.observer.daemon.priorityClassName }}
+      priorityClassName: {{ .Values.observer.daemon.priorityClassName }}
+      {{- end }}
+      {{- with .Values.observer.daemon.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.observer.daemon.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.observer.daemon.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.observer.daemon.affinity }}
+      affinity:
+        {{- include "neuron-observer-daemon.affinity" $ | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ add .Values.observer.daemon.config.daemon.shutdown_timeout_secs 5 }}
+      # EFA/RDMA hw_counters in sysfs are rendered per network namespace, so
+      # the daemon must share the host netns to read them (privileged alone
+      # does not expose them).
+      hostNetwork: {{ .Values.observer.daemon.hostNetwork }}
+      {{- if .Values.observer.daemon.hostNetwork }}
+      dnsPolicy: ClusterFirstWithHostNet
+      {{- end }}
+      containers:
+      - name: neuron-observer
+        image: {{ include "neuron-observer.fullimage" . }}
+        imagePullPolicy: {{ .Values.observer.image.pullPolicy }}
+        command:
+          - /usr/local/bin/neuron-observer
+        args:
+          - "daemon"
+          - "--config"
+          - "/etc/neuron-observer/config.yaml"
+        ports:
+          - name: http
+            containerPort: {{ .Values.observer.daemon.config.daemon.port }}
+            {{- if .Values.observer.daemon.hostNetwork }}
+            # Derived from the container port: with hostNetwork the process binds
+            # config.daemon.port and Kubernetes requires hostPort to equal it.
+            hostPort: {{ .Values.observer.daemon.config.daemon.port }}
+            {{- end }}
+            protocol: TCP
+        env:
+          {{- with .Values.observer.daemon.env }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+          {{- if .Values.observer.daemon.config.export.enabled }}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: "http://{{ include "neuron-observer-otel-daemon.fullname" $ }}-collector.{{ include "neuron-observer-otel-daemon.namespace" $ }}:4318"
+          {{- end }}
+        securityContext:
+          {{- toYaml .Values.observer.daemon.securityContext | nindent 10 }}
+        {{- with .Values.observer.daemon.livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.observer.daemon.readinessProbe }}
+        readinessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.observer.daemon.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+          - name: config
+            mountPath: /etc/neuron-observer
+            readOnly: true
+          - name: host-proc
+            mountPath: /host-proc
+            readOnly: true
+          # Writable scratch for the health-check subprocess: the Neuron
+          # runtime's nrt_init creates /tmp/neuron-input-dump, which fails
+          # (surfacing as NRT_RESOURCE) on the read-only root filesystem.
+          - name: tmp
+            mountPath: /tmp
+          {{- with .Values.observer.daemon.extraVolumeMounts }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "neuron-observer-daemon.fullname" . }}-config
+        - name: host-proc
+          hostPath:
+            path: /proc
+            type: Directory
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ .Values.observer.daemon.tmpSizeLimit }}
+        {{- with .Values.observer.daemon.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+{{- end }}

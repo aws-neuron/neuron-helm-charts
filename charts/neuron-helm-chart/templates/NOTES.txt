@@ -1,3 +1,56 @@
 {{- if and .Values.draDriver.enabled .Values.devicePlugin.enabled }}
 WARNING: DRA driver and device plugin cannot both be active. Device plugin has been skipped because DRA driver takes precedence.
 {{- end }}
+
+{{- if .Values.observer.enabled }}
+Neuron Observer has been deployed.
+
+== Daemon (DaemonSet) ==
+  Runs on all nodes matching neuronInstances affinity.
+  Port: {{ .Values.observer.daemon.config.daemon.port }}{{ if .Values.observer.daemon.hostNetwork }} (hostPort){{ end }}
+  ServiceAccount: {{ include "neuron-observer-daemon.serviceAccountName" . }}
+  ConfigMap changes trigger automatic pod rollouts via checksum annotation.
+  Native Prometheus metrics: GET :{{ .Values.observer.daemon.config.daemon.port }}/metrics (always on)
+  {{- /* Same helpers as podmonitor.yaml/prometheusrule.yaml, so this never reports the wrong state. */}}
+  {{- if eq (include "neuron-observer-daemon.podMonitorEnabled" .) "true" }}
+  PodMonitor: created{{ with include "neuron-observer.monitoring.releaseLabel" (list . .Values.observer.monitoring.podMonitor) }} (release label "{{ . }}"){{ end }}
+  {{- else }}
+  PodMonitor: not created (set observer.monitoring.podMonitor.enabled=true to force)
+  {{- end }}
+  {{- if eq (include "neuron-observer.prometheusRuleEnabled" .) "true" }}
+  PrometheusRule: created{{ with include "neuron-observer.monitoring.releaseLabel" (list . .Values.observer.monitoring.prometheusRule) }} (release label "{{ . }}"){{ end }} — reference alert pack
+  {{- else }}
+  PrometheusRule: not created. To install the reference alerts, review their thresholds and severities, then set observer.monitoring.prometheusRule.enabled=true (also needs the PodMonitor).
+  {{- end }}
+  {{- if .Values.observer.monitoring.grafanaDashboards.enabled }}
+  Grafana dashboards: three ConfigMaps created in namespace {{ .Values.observer.monitoring.grafanaDashboards.namespace | default (include "neuron-observer-daemon.namespace" .) }}.
+  {{- else }}
+  Grafana dashboards: not created. Set observer.monitoring.grafanaDashboards.enabled=true after you install a compatible Grafana dashboard sidecar.
+  {{- end }}
+
+  Diagnostics (run on the affected node once an alert fires):
+    nobs status                 daemon liveness/readiness, driver versions
+    nobs devices                per-device health verdict and components
+    nobs metrics                system/device/core metric views
+    nobs metrics --scope efa    per-EFA-interface traffic and error counters
+    nobs health run             active matmul / NeuronLink / EFA hardware checks
+
+{{- if .Values.observer.daemon.config.export.enabled }}
+
+== OpenTelemetry Export ==
+  ServiceAccount: {{ .Values.observer.otel.serviceAccount.name }}
+  Ensure the OpenTelemetry Operator is installed in your cluster.
+  {{- if or .Values.observer.otelDaemonCollector.pipelines.cloudwatch.enabled .Values.observer.otelDaemonCollector.pipelines.amp.enabled }}
+  CloudWatch/AMP pipelines require IRSA or Pod Identity on the OTel ServiceAccount.
+  {{- end }}
+  Daemon collector: {{ include "neuron-observer-otel-daemon.fullname" . }}-collector.{{ include "neuron-observer-otel-daemon.namespace" . }}:4318
+  {{- with .Values.observer.otelDaemonCollector.pipelines }}
+  {{- $enabled := list }}
+  {{- if .cloudwatch.enabled }}{{ $enabled = append $enabled "cloudwatch" }}{{ end }}
+  {{- if .amp.enabled }}{{ $enabled = append $enabled "amp" }}{{ end }}
+  {{- if .otlp.enabled }}{{ $enabled = append $enabled "otlp" }}{{ end }}
+  Pipelines: {{ join " " $enabled }}
+  {{- end }}
+{{- end }}
+
+{{- end }}

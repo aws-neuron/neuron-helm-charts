@@ -30,6 +30,25 @@ Validate configuration
 {{- end -}}
 
 {{/*
+Device health monitoring needs NeuronObserver: look for its DaemonSet by label in
+any namespace. lookup returns nothing without a cluster (helm template,
+--dry-run=client), so the check only runs when kube-system is visible.
+*/}}
+{{- define "neuron-dra-driver.validateObserver" -}}
+{{- if and .Values.draDriver.enabled .Values.draDriver.deviceHealthMonitoring.enabled (lookup "v1" "Namespace" "" "kube-system") -}}
+  {{- $found := false -}}
+  {{- range (lookup "apps/v1" "DaemonSet" "" "").items -}}
+    {{- if eq (dig "metadata" "labels" "app.kubernetes.io/name" "" .) "neuron-observer" -}}
+      {{- $found = true -}}
+    {{- end -}}
+  {{- end -}}
+  {{- if not $found -}}
+    {{- fail "draDriver.deviceHealthMonitoring.enabled requires NeuronObserver, but no DaemonSet labeled app.kubernetes.io/name=neuron-observer was found. Install NeuronObserver first." -}}
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Create chart name and version as used by the chart label.
 */}}
 {{- define "neuron-helm-chart.chart" -}}
@@ -682,4 +701,223 @@ privileged: true
     {{ $key }}: {{ $value | quote }}
   {{- end }}
 {{- end }}
+{{- end -}}
+
+
+{{/*
+Validate configuration.
+*/}}
+{{- define "neuron-observer.validateConfig" -}}
+{{- if .Values.observer.daemon.config.export.enabled -}}
+  {{- $p := .Values.observer.otelDaemonCollector.pipelines -}}
+  {{- if not (or $p.cloudwatch.enabled $p.amp.enabled $p.otlp.enabled) -}}
+    {{- fail "daemon.config.export.enabled is true but no otelDaemonCollector pipelines are enabled — enable at least one pipeline (cloudwatch, amp, or otlp). For Prometheus pull, use the daemon's native /metrics endpoint (monitoring.podMonitor) instead of OTLP export." -}}
+  {{- end -}}
+  {{- if and (or $p.cloudwatch.enabled $p.amp.enabled) (not .Values.observer.otelDaemonCollector.awsRegion) -}}
+    {{- fail "observer.otelDaemonCollector.awsRegion is required when the cloudwatch or amp pipeline is enabled" -}}
+  {{- end -}}
+  {{- if and $p.amp.enabled (not $p.amp.endpoint) -}}
+    {{- fail "otelDaemonCollector.pipelines.amp.endpoint is required when amp pipeline is enabled" -}}
+  {{- end -}}
+  {{- if and $p.otlp.enabled (not $p.otlp.endpoint) -}}
+    {{- fail "otelDaemonCollector.pipelines.otlp.endpoint is required when otlp pipeline is enabled" -}}
+  {{- end -}}
+{{- end -}}
+{{/*
+The shared OTel ServiceAccount is created only in the daemon namespace;
+ServiceAccounts are namespace-scoped, so the collector must share it.
+*/}}
+{{- $ns := include "neuron-observer-daemon.namespace" . -}}
+{{- if and .Values.observer.daemon.config.export.enabled (ne (include "neuron-observer-otel-daemon.namespace" .) $ns) -}}
+  {{- fail "otelDaemonCollector.namespaceOverride must match the daemon namespace — the shared OTel ServiceAccount is created only there" -}}
+{{- end -}}
+{{- end -}}
+
+{{/* ===================================================================
+     Daemon helpers
+     =================================================================== */}}
+
+{{/*
+Expand the name of the daemon.
+*/}}
+{{- define "neuron-observer-daemon.name" -}}
+{{- default .Chart.Name .Values.observer.daemon.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Expand the namespace of the daemon.
+*/}}
+{{- define "neuron-observer-daemon.namespace" -}}
+{{- default .Release.Namespace .Values.observer.daemon.namespaceOverride | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Create a default fully qualified daemon name.
+*/}}
+{{- define "neuron-observer-daemon.fullname" -}}
+{{- if .Values.observer.daemon.fullnameOverride -}}
+{{- .Values.observer.daemon.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $name := default .Chart.Name .Values.observer.daemon.nameOverride -}}
+{{- if contains $name .Release.Name -}}
+{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Create the name of the daemon service account to use.
+*/}}
+{{- define "neuron-observer-daemon.serviceAccountName" -}}
+{{- if .Values.observer.daemon.serviceAccount.create -}}
+{{- default (include "neuron-observer-daemon.fullname" .) .Values.observer.daemon.serviceAccount.name -}}
+{{- else -}}
+{{- default "default" .Values.observer.daemon.serviceAccount.name -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Observer image.
+*/}}
+{{- define "neuron-observer.fullimage" -}}
+{{- printf "%s:%s" .Values.observer.image.repository .Values.observer.image.tag -}}
+{{- end -}}
+
+{{/*
+Common labels for daemon.
+*/}}
+{{- define "neuron-observer-daemon.labels" -}}
+helm.sh/chart: {{ include "neuron-helm-chart.chart" . }}
+{{ include "neuron-observer-daemon.templateLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end -}}
+
+{{/*
+Template labels for daemon.
+*/}}
+{{- define "neuron-observer-daemon.templateLabels" -}}
+app.kubernetes.io/name: {{ include "neuron-observer-daemon.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: monitoring
+{{- if .Values.observer.daemon.selectorLabelsOverride }}
+{{ toYaml .Values.observer.daemon.selectorLabelsOverride }}
+{{- end }}
+{{- end }}
+
+{{/*
+Selector labels for daemon.
+*/}}
+{{- define "neuron-observer-daemon.selectorLabels" -}}
+{{- if .Values.observer.daemon.selectorLabelsOverride -}}
+{{ toYaml .Values.observer.daemon.selectorLabelsOverride }}
+{{- else -}}
+{{ include "neuron-observer-daemon.templateLabels" . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Affinity for daemon DaemonSet.
+*/}}
+{{- define "neuron-observer-daemon.affinity" -}}
+{{- $instanceTypeKey := (include "node.instanceTypeKey" .) -}}
+{{- $neuronInstances := $.Values.neuronInstances | toYaml | nindent 8 -}}
+{{- $affinityYaml := .Values.observer.daemon.affinity | toYaml |
+     replace "__INSTANCE_TYPE_KEY__" $instanceTypeKey |
+     replace "__NEURON_INSTANCES__" $neuronInstances -}}
+{{- tpl $affinityYaml $ -}}
+{{- end -}}
+
+
+
+{{/* ===================================================================
+     OTel Daemon Collector helpers
+     =================================================================== */}}
+
+{{/*
+Expand the namespace of the OTel daemon collector.
+*/}}
+{{- define "neuron-observer-otel-daemon.namespace" -}}
+{{- default .Release.Namespace .Values.observer.otelDaemonCollector.namespaceOverride | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Fullname for OTel daemon collector.
+*/}}
+{{- define "neuron-observer-otel-daemon.fullname" -}}
+{{- default "neuron-observer-daemon" .Values.observer.otelDaemonCollector.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Whether the daemon PodMonitor will be deployed: the explicit
+observer.monitoring.podMonitor.enabled value when set, else whether the
+prometheus-operator CRD is installed. Returns "true" or "false".
+*/}}
+{{- define "neuron-observer-daemon.podMonitorEnabled" -}}
+{{- $pmExplicit := .Values.observer.monitoring.podMonitor.enabled -}}
+{{- $crdAvailable := .Capabilities.APIVersions.Has "monitoring.coreos.com/v1" -}}
+{{- ternary $pmExplicit $crdAvailable (kindIs "bool" $pmExplicit) -}}
+{{- end -}}
+
+{{/*
+Whether the reference-alert PrometheusRule will be deployed. Requires the
+daemon PodMonitor: without it Prometheus never scrapes the daemon, so
+NeuronObserverTargetDown can never fire and NeuronDeviceHealthMissing fires
+permanently. Otherwise follows observer.monitoring.prometheusRule.enabled
+(default false); when it is null, falls back to CRD availability. Returns
+"true" or "false".
+*/}}
+{{- define "neuron-observer.prometheusRuleEnabled" -}}
+{{- $ruleExplicit := .Values.observer.monitoring.prometheusRule.enabled -}}
+{{- $crdAvailable := .Capabilities.APIVersions.Has "monitoring.coreos.com/v1" -}}
+{{- $ruleEnabled := ternary $ruleExplicit $crdAvailable (kindIs "bool" $ruleExplicit) -}}
+{{- and $ruleEnabled (eq (include "neuron-observer-daemon.podMonitorEnabled" .) "true") -}}
+{{- end -}}
+
+{{/*
+Space-separated names of the shipped PrometheusRule groups, for the
+test-prometheus-rules hook.
+*/}}
+{{- define "neuron-observer.prometheusRuleGroupNames" -}}
+{{- $names := list -}}
+{{- range (fromYaml (include "neuron-observer.prometheusRuleGroups" .)).groups -}}
+{{- $names = append $names .name -}}
+{{- end -}}
+{{- join " " $names -}}
+{{- end -}}
+
+{{/*
+Labels for a prometheus-operator resource (PodMonitor,
+PrometheusRule). Call with (list $ <resource values> <base labels YAML>), e.g.
+  include "neuron-observer.monitoring.labels" (list . .Values.observer.monitoring.podMonitor (include "neuron-observer-daemon.labels" .))
+The `release` label is the resource's releaseLabel when that key is set, else
+observer.monitoring.releaseLabel; an empty value omits it. Shared, then
+per-resource, additionalLabels are merged on top, so a key is overridden
+rather than duplicated.
+*/}}
+{{- define "neuron-observer.monitoring.labels" -}}
+{{- $root := index . 0 -}}
+{{- $cfg := index . 1 | default dict -}}
+{{- $labels := fromYaml (index . 2) | default dict -}}
+{{- $mon := $root.Values.observer.monitoring -}}
+{{- $release := ternary ($cfg.releaseLabel | default "") ($mon.releaseLabel | default "") (hasKey $cfg "releaseLabel") -}}
+{{- with $release -}}
+{{- $_ := set $labels "release" . -}}
+{{- end -}}
+{{- $labels = mergeOverwrite $labels ($mon.additionalLabels | default dict) ($cfg.additionalLabels | default dict) -}}
+{{- toYaml $labels -}}
+{{- end -}}
+
+{{/*
+The release label a prometheus-operator resource will carry ("" if none), for
+NOTES. Call with (list $ <resource values>).
+*/}}
+{{- define "neuron-observer.monitoring.releaseLabel" -}}
+{{- $root := index . 0 -}}
+{{- $cfg := index . 1 | default dict -}}
+{{- ternary ($cfg.releaseLabel | default "") ($root.Values.observer.monitoring.releaseLabel | default "") (hasKey $cfg "releaseLabel") -}}
 {{- end -}}

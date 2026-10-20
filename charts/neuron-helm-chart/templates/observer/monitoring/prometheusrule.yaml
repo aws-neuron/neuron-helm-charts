@@ -1,0 +1,211 @@
+{{- /*
+Package the Neuron Observer reference alert pack as a PrometheusRule.
+
+Opt-in (observer.monitoring.prometheusRule.enabled, default false) because two
+alerts use severity: page and the thresholds are beta defaults. Set it to null
+to render whenever the prometheus-operator CRD (monitoring.coreos.com/v1) is
+installed. It also requires the PodMonitor, since these rules only work on
+series that PodMonitor scrapes (see "neuron-observer.prometheusRuleEnabled" in
+_helpers.tpl).
+
+The rule groups below mirror NeuronObserver manifests/alerts/prometheus_rules.yaml.
+Prometheus template expressions are escaped ({{`{{ $value }}`}}) so Helm passes
+them through. To customize the alerts, disable this rule and deploy your own
+PrometheusRule.
+*/ -}}
+{{- define "neuron-observer.prometheusRuleGroups" }}
+groups:
+  - name: neuron-observer-availability
+    interval: 1m
+    rules:
+      - alert: NeuronObserverTargetDown
+        expr: up{job="{{ include "neuron-observer-daemon.name" . }}"} == 0
+        for: 5m
+        labels:
+          service: neuron
+          severity: page
+          signal: target_availability
+        annotations:
+          summary: "Neuron Observer target is down"
+          description: |
+            Prometheus has failed to scrape this Neuron Observer target for
+            5 minutes. The current value is {{`{{ $value }}`}}; the expected value
+            is 1.
+          recommended_action: |
+            Check the neuron-observer process or pod, its /healthz endpoint,
+            and the Prometheus target error.
+  - name: neuron-device-health
+    interval: 1m
+    rules:
+      - alert: NeuronDeviceUnhealthy
+        expr: neuron_device_health{state="unhealthy"} == 1
+        for: 5m
+        labels:
+          service: neuron
+          severity: page
+          signal: device_health
+        annotations:
+          summary: "Neuron device unhealthy on {{`{{ $labels.instance_id }}`}}"
+          description: |
+            Device {{`{{ $labels.neuron_device_index }}`}} on instance
+            {{`{{ $labels.instance_id }}`}} has reported unhealthy for 5 minutes.
+            The current value is {{`{{ $value }}`}}; the alert threshold is 1.
+          recommended_action: |
+            Check neuron_device_unhealthy_component, then run `nobs devices`
+            on the affected node.
+      # Denominator is the device inventory (neuron_device_info), not only
+      # the devices that report health, so a small health-reporting
+      # population cannot inflate the ratio. Duplicate scrape replicas
+      # collapse through max by (...) before counting. The minimum device
+      # count keeps small deployments from paging on a single unhealthy
+      # device.
+      - alert: NeuronDeviceUnhealthyFleetRatio
+        expr: |
+          (
+            sum(
+              max by (instance_id, neuron_device_index) (
+                neuron_device_health{state="unhealthy"}
+              )
+            )
+            /
+            sum(
+              max by (instance_id, neuron_device_index) (
+                neuron_device_info
+              )
+            )
+            > 0.10
+          )
+          and
+          sum(
+            max by (instance_id, neuron_device_index) (
+              neuron_device_health{state="unhealthy"}
+            )
+          ) >= 3
+        for: 10m
+        labels:
+          service: neuron
+          severity: warning
+          signal: device_health_fleet
+        annotations:
+          summary: "More than 10% of Neuron devices report unhealthy"
+          description: |
+            The unhealthy device ratio has stayed above 0.10 for 10 minutes
+            across at least 3 devices. The current ratio is {{`{{ $value }}`}}.
+          recommended_action: |
+            Check for a shared driver, kernel, image, or infrastructure
+            change before treating the failures as unrelated device issues.
+      # Low-noise fleet-wide form: absent() fires only when NO
+      # neuron_device_health series exist anywhere, so a single node going
+      # dark won't trip it. Pairs with NeuronObserverTargetDown (up==0):
+      # that catches a target that isn't scrapeable, while absent() here
+      # catches a target scraped fine but exporting no health series at
+      # all (broken export pipeline, or an all-unknown / all-legacy fleet).
+      - alert: NeuronDeviceHealthMissing
+        expr: |
+          absent(neuron_device_health) == 1
+        for: 15m
+        labels:
+          service: neuron
+          severity: warning
+          signal: device_health_missing
+        annotations:
+          summary: "neuron_device_health metric is missing"
+          description: |
+            No data points for neuron_device_health in the last 15 minutes.
+            Either the daemon isn't running, the OTel pipeline is broken, or
+            no device has an authoritative health verdict (every device is on
+            a legacy driver without the health sysfs tree, or reporting an
+            unknown state — neither emits a row). The current value is
+            {{`{{ $value }}`}}, which is 1 while no health series exist.
+          recommended_action: |
+            Confirm the daemon is running and scraping, then inspect its logs
+            and `nobs devices`. Verify the metrics/OTel export pipeline is
+            emitting neuron_device_health; an all-legacy or all-unknown fleet
+            emits no health rows.
+  - name: neuron-hardware-reliability
+    interval: 1m
+    rules:
+      - alert: NeuronMemoryEccUncorrected
+        expr: |
+          increase(neuron_device_mem_ecc_uncorrected_sum_total[10m]) > 0
+        for: 1m
+        labels:
+          service: neuron
+          severity: warning
+          signal: memory_ecc
+        annotations:
+          summary: "Uncorrected Neuron device memory ECC error"
+          description: |
+            The uncorrected device-memory ECC counter increased during the
+            last 10 minutes. The observed increase is
+            {{`{{ $value }}`}}; the alert threshold is greater than 0.
+          recommended_action: |
+            Cordon and drain the affected node, then inspect device health and
+            kernel logs and run the node health check.
+      - alert: NeuronSramEccUncorrected
+        expr: |
+          increase(neuron_device_sram_ecc_uncorrected_sum_total[10m]) > 0
+        for: 1m
+        labels:
+          service: neuron
+          severity: warning
+          signal: sram_ecc
+        annotations:
+          summary: "Uncorrected Neuron SRAM ECC error"
+          description: |
+            The uncorrected SRAM ECC counter increased during the last
+            10 minutes. The observed increase is
+            {{`{{ $value }}`}}; the alert threshold is greater than 0.
+          recommended_action: |
+            Cordon and drain the affected node, then inspect device health and
+            kernel logs and run the node health check.
+      - alert: NeuronCoreUncorrectedError
+        expr: |
+          increase(neuron_core_hw_err_nc_ue_sum_total[10m]) > 0
+        for: 1m
+        labels:
+          service: neuron
+          severity: warning
+          signal: core_hardware_error
+        annotations:
+          summary: "Uncorrected NeuronCore hardware error"
+          description: |
+            The uncorrected NeuronCore hardware-error counter increased during
+            the last 10 minutes. The observed increase is
+            {{`{{ $value }}`}}; the alert threshold is greater than 0.
+          recommended_action: |
+            Cordon and drain the affected node, then inspect device health and
+            kernel logs and run the node health check. If uncorrected NeuronCore
+            errors recur after the node returns to service, escalate the device
+            for hardware inspection.
+      - alert: NeuronCoreResetFailure
+        expr: |
+          increase(neuron_core_reset_fail_count_sum_total[10m]) > 0
+        for: 1m
+        labels:
+          service: neuron
+          severity: warning
+          signal: core_reset
+        annotations:
+          summary: "NeuronCore reset failure"
+          description: |
+            The NeuronCore reset-failure counter increased during the last
+            10 minutes. The observed increase is
+            {{`{{ $value }}`}}; the alert threshold is greater than 0.
+          recommended_action: |
+            Drain the node, inspect the reset and kernel logs, and run the
+            node health check before returning the node to service.
+{{ end }}
+{{- if and .Values.observer.enabled (eq (include "neuron-observer.prometheusRuleEnabled" .) "true") }}
+{{- $rule := .Values.observer.monitoring.prometheusRule }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "neuron-observer-daemon.fullname" . }}-rules
+  namespace: {{ include "neuron-observer-daemon.namespace" . }}
+  labels:
+    {{- include "neuron-observer.monitoring.labels" (list . $rule (include "neuron-observer-daemon.labels" .)) | nindent 4 }}
+spec:
+  groups:
+    {{- (fromYaml (include "neuron-observer.prometheusRuleGroups" .)).groups | toYaml | nindent 4 }}
+{{- end }}

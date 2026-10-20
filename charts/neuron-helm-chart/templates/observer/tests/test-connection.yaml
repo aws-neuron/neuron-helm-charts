@@ -1,0 +1,41 @@
+{{- if and .Values.observer.enabled .Values.observer.daemon.hostNetwork }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "neuron-observer-daemon.fullname" . }}-test-connection"
+  namespace: {{ include "neuron-observer-daemon.namespace" . }}
+  # Distinct labels so the daemon DaemonSet's selector doesn't reap this pod.
+  labels:
+    app.kubernetes.io/name: {{ include "neuron-observer-daemon.name" . }}-test
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: test
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  restartPolicy: Never
+  # Share the node's network (+ daemon scheduling) to reach the daemon on
+  # localhost; the daemon is a hostNetwork DaemonSet with no Service.
+  hostNetwork: true
+  {{- with .Values.observer.daemon.nodeSelector }}
+  nodeSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.observer.daemon.tolerations }}
+  tolerations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.observer.daemon.affinity }}
+  affinity:
+    {{- include "neuron-observer-daemon.affinity" $ | nindent 4 }}
+  {{- end }}
+  containers:
+    - name: test-daemon-healthz
+      image: public.ecr.aws/docker/library/busybox:1.36.1
+      command: ['sh', '-c']
+      args:
+        - |
+          echo "Testing daemon healthz on this node..."
+          wget -q -O- --timeout=5 http://127.0.0.1:{{ .Values.observer.daemon.config.daemon.port }}/healthz && echo " OK" || exit 1
+{{- end }}

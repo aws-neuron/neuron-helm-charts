@@ -1,0 +1,46 @@
+{{- /*
+Package the Neuron Observer reference Grafana dashboards as ConfigMaps.
+
+The dashboards are opt-in because the chart cannot detect a Grafana dashboard
+sidecar or the namespaces that it watches. The default label and namespace
+match the kube-prometheus-stack installation used by the Neuron Observer
+quickstart.
+*/ -}}
+{{- if and .Values.observer.enabled .Values.observer.monitoring.grafanaDashboards.enabled }}
+{{- $dashboards := .Values.observer.monitoring.grafanaDashboards -}}
+{{- $namespace := $dashboards.namespace | default (include "neuron-observer-daemon.namespace" .) -}}
+{{- $labelKey := $dashboards.label | default "grafana_dashboard" -}}
+{{- $labelValue := $dashboards.labelValue | default "1" | toString -}}
+{{- $files := list
+      "files/observer/grafana/neuron-cluster-overview.json"
+      "files/observer/grafana/neuron-node-diagnostics.json"
+      "files/observer/grafana/neuron-device-health.json"
+-}}
+{{- range $path := $files }}
+{{ $content := $.Files.Get $path }}
+{{ if not $content }}
+{{ fail (printf "required Neuron Observer Grafana dashboard is missing from the chart: %s" $path) }}
+{{ end }}
+{{ $filename := base $path }}
+{{ $dashboardName := trimSuffix ".json" $filename }}
+{{ $configMapName := printf "%s-%s" $.Release.Name $dashboardName | trunc 63 | trimSuffix "-" }}
+{{ $labels := fromYaml (include "neuron-observer-daemon.labels" $) | default dict }}
+{{ $labels = mergeOverwrite $labels ($dashboards.additionalLabels | default dict) }}
+{{ $_ := set $labels $labelKey $labelValue }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configMapName }}
+  namespace: {{ $namespace }}
+  labels:
+    {{- toYaml $labels | nindent 4 }}
+  {{- with $dashboards.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  {{ $filename }}: |
+{{ $content | nindent 4 }}
+{{- end }}
+{{- end }}

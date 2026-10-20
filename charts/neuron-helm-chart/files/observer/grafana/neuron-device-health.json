@@ -1,0 +1,258 @@
+{
+  "uid": "neuron-device-health",
+  "title": "Neuron Device Health",
+  "editable": true,
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "refresh": "1m",
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "Prometheus",
+          "value": "prometheus"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Data Source",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "type": "datasource"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Devices by health state",
+      "description": "Count of devices currently reporting each authoritative health state. Only healthy/unhealthy are emitted — devices with no verdict (unknown, or no sysfs health tree) emit no row and are not shown here; inspect `nobs devices` for those.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "unhealthy"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(neuron_device_health) by (state)",
+          "legendFormat": "{{state}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Unhealthy devices",
+      "description": "Devices currently reporting state=unhealthy. Should normally be 0; non-zero is a paging-grade signal.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(neuron_device_health{state=\"unhealthy\"}) or vector(0)",
+          "legendFormat": "unhealthy"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Healthy devices",
+      "description": "Devices currently reporting state=healthy. This counts only devices with an authoritative verdict; devices whose health is unknown or whose driver lacks the health sysfs tree emit no row and are excluded.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(neuron_device_health{state=\"healthy\"}) or vector(0)",
+          "legendFormat": "healthy"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Unhealthy device list",
+      "description": "Per-device breakdown of unhealthy devices joined with host metadata. instance_type/region/ultraserver_id are system-scoped attributes carried on neuron_system_info, so the join is on instance_id only (one host row applies to all its devices). Filter by ultraserver_id, region, or instance_type as needed.",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "neuron_device_health{state=\"unhealthy\"} * on (instance_id) group_left (instance_type, region, ultraserver_id) neuron_system_info",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "job": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Unhealthy components (top by frequency)",
+      "description": "Component-level breakdown across all currently unhealthy devices. Identifies whether failures cluster on a specific subsystem (HBM, NeuronCore, DRAM, etc.).",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, sum by (component) (neuron_device_unhealthy_component))",
+          "legendFormat": "{{component}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Unhealthy device count over time",
+      "description": "Fleet-wide count of devices in the unhealthy state, plotted as a level over time. A rising step indicates devices entering the unhealthy state; a correlated jump suggests an incident across the fleet.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(neuron_device_health{state=\"unhealthy\"}) or vector(0)",
+          "legendFormat": "unhealthy devices"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39
+}

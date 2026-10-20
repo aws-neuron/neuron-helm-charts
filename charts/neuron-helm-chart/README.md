@@ -8,6 +8,7 @@ AWS Neuron Helm Chart for Kubernetes
 * Neuron Node Problem Detector Plugin and Recovery Agent
 * Neuron DRA Driver
 * Neuron UltraServer Operator
+* Neuron Observer
 
 ## Prerequisites
 
@@ -80,6 +81,21 @@ helm upgrade --install neuron-helm-chart oci://public.ecr.aws/neuron/neuron-helm
 
 Note: Neuron Device Plugin and Neuron DRA Driver plugin **cannot** run on the same node. As of now, the two mechanisms act independently.
 
+#### Device health monitoring
+
+Disabled by default. When enabled, the DRA driver taints unhealthy devices from NeuronObserver fault events.
+
+**Prerequisites**
+- NeuronObserver is installed. `helm install`/`upgrade` fails if no NeuronObserver DaemonSet is found. `helm template` skips this check because it has no cluster access.
+
+```
+helm upgrade --install neuron-helm-chart oci://public.ecr.aws/neuron/neuron-helm-chart \
+  --set "draDriver.enabled=true" \
+  --set "draDriver.deviceHealthMonitoring.enabled=true"
+```
+
+To override the default taint policy, create the `neuron-dra-taint-policy` ConfigMap (key `policy.yaml`) in the DRA driver namespace. The driver picks up changes without a restart.
+
 ### Neuron UltraServer Operator
 
 **Prerequisites**
@@ -94,11 +110,46 @@ helm upgrade --install neuron-helm-chart oci://public.ecr.aws/neuron/neuron-helm
   --set "ultraserverOperator.enabled=true"
 ```
 
+### Neuron Observer
+
+**Prerequisites** (only when enabling metric export via `observer.daemon.config.export.enabled`)
+- The [OpenTelemetry Operator](https://github.com/open-telemetry/opentelemetry-operator) must be installed; the collectors are deployed as `OpenTelemetryCollector` custom resources.
+- For CloudWatch or AMP export, the OTel collector service account (`observer.otel.serviceAccount`) needs IRSA (or Pod Identity) permissions:
+  - CloudWatch: `logs:CreateLogGroup`, `logs:CreateLogStream`, `logs:PutLogEvents`, `cloudwatch:PutMetricData`
+  - Amazon Managed Prometheus: `aps:RemoteWrite`
+  - The `otlp` pipeline requires no IAM permissions.
+
+The Neuron Observer is disabled by default.
+
+The observer installs into the `neuron-observer` namespace, which the chart does not create by default. Pre-create it, or set `observer.namespace.create=true` as below.
+
+To install the Neuron Observer daemon:
+```
+helm upgrade --install neuron-helm-chart oci://public.ecr.aws/neuron/neuron-helm-chart \
+  --set "observer.enabled=true" \
+  --set "observer.namespace.create=true"
+```
+
+The chart can also install three reference Grafana dashboards as ConfigMaps for
+a dashboard sidecar to discover. The default settings target a
+kube-prometheus-stack sidecar watching the `monitoring` namespace for
+`grafana_dashboard=1`:
+```
+helm upgrade --install neuron-helm-chart oci://public.ecr.aws/neuron/neuron-helm-chart \
+  --set "observer.enabled=true" \
+  --set "observer.namespace.create=true" \
+  --set "observer.monitoring.grafanaDashboards.enabled=true"
+```
+
+**Security**: the daemon runs with host networking and serves an unauthenticated HTTP API (including fault-injection endpoints) and metrics on port `7001` of every node it runs on. Restrict inbound access to that port, for example with node security group rules, to your Prometheus scrapers.
+
 ## Uninstalling the Chart
 
 ```
 helm uninstall neuron-helm-chart
 ```
+
+If the chart created the observer namespace (`observer.namespace.create=true`), uninstalling deletes that namespace and everything in it.
 
 ## Configuration
 
@@ -196,7 +247,7 @@ helm uninstall neuron-helm-chart
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `npd.nodeProblemDetector.image.repository` | NPD image repository | `registry.k8s.io/node-problem-detector/node-problem-detector` |
-| `npd.nodeProblemDetector.image.tag` | NPD image tag | `v1.35.2` |
+| `npd.nodeProblemDetector.image.tag` | NPD image tag | `v1.37.0` |
 | `npd.nodeProblemDetector.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `npd.nodeProblemDetector.resources.limits.cpu` | CPU limit | `10m` |
 | `npd.nodeProblemDetector.resources.limits.memory` | Memory limit | `80Mi` |
@@ -211,7 +262,7 @@ helm uninstall neuron-helm-chart
 | `npd.nodeRecovery.enabled` | Enable node recovery agent | `false` |
 | `npd.nodeRecovery.startupDelaySeconds` | Startup delay in seconds | `60` |
 | `npd.nodeRecovery.image.repository` | Recovery agent image repository | `public.ecr.aws/neuron/neuron-node-recovery` |
-| `npd.nodeRecovery.image.tag` | Recovery agent image tag | `1.12.0` |
+| `npd.nodeRecovery.image.tag` | Recovery agent image tag | `1.13.0` |
 | `npd.nodeRecovery.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `npd.nodeRecovery.resources.limits.cpu` | CPU limit | `10m` |
 | `npd.nodeRecovery.resources.limits.memory` | Memory limit | `150Mi` |
@@ -225,7 +276,7 @@ helm uninstall neuron-helm-chart
 |-----------|-------------|---------|
 | `draDriver.enabled` | Enable Neuron DRA Driver (mutually exclusive with devicePlugin and scheduler) | `false` |
 | `draDriver.image.repository` | DRA Driver image repository | `public.ecr.aws/neuron/neuron-dra-driver` |
-| `draDriver.image.tag` | DRA Driver image tag | `1.2.0` |
+| `draDriver.image.tag` | DRA Driver image tag | `1.3.0` |
 | `draDriver.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `draDriver.nameOverride` | Override component name | `neuron-dra-driver` |
 | `draDriver.namespaceOverride` | Override namespace | `neuron-dra-driver` |
@@ -249,6 +300,7 @@ helm uninstall neuron-helm-chart
 | `draDriver.livenessProbe.periodSeconds` | Liveness probe period | `10` |
 | `draDriver.livenessProbe.initialDelaySeconds` | Liveness probe initial delay | `30` |
 | `draDriver.livenessProbe.timeoutSeconds` | Liveness probe timeout | `5` |
+| `draDriver.deviceHealthMonitoring.enabled` | Taint unhealthy devices from NeuronObserver fault events (requires NeuronObserver) | `false` |
 
 ### UltraServer Operator Configuration
 
@@ -256,7 +308,7 @@ helm uninstall neuron-helm-chart
 |-----------|-------------|---------|
 | `ultraserverOperator.enabled` | Enable Neuron UltraServer Operator (requires draDriver.enabled) | `false` |
 | `ultraserverOperator.image.repository` | UltraServer Operator image repository | `public.ecr.aws/neuron/neuron-ultraserver-operator` |
-| `ultraserverOperator.image.tag` | UltraServer Operator image tag | `0.2.0` |
+| `ultraserverOperator.image.tag` | UltraServer Operator image tag | `0.3.0` |
 | `ultraserverOperator.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `ultraserverOperator.nameOverride` | Override component name | `neuron-ultraserver-operator` |
 | `ultraserverOperator.namespaceOverride` | Override namespace | `neuron-dra-driver` |
@@ -276,6 +328,70 @@ helm uninstall neuron-helm-chart
 | `ultraserverOperator.tolerations` | Pod tolerations | `[]` |
 | `ultraserverOperator.affinity` | Pod affinity rules | `{}` |
 
+### Observer Configuration
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `observer.enabled` | Enable Neuron Observer | `false` |
+| `observer.namespace.create` | Create the observer namespace | `false` |
+| `observer.image.repository` | Observer image repository | `public.ecr.aws/neuron/neuron-observer` |
+| `observer.image.tag` | Observer image tag | `0.2.0` |
+| `observer.image.pullPolicy` | Image pull policy | `IfNotPresent` |
+| `observer.daemon.namespaceOverride` | Override namespace | `neuron-observer` |
+| `observer.daemon.hostNetwork` | Run the daemon in the host network namespace | `true` |
+| `observer.daemon.config` | Collection, export, logging, API, and emulation settings | See values.yaml |
+| `observer.daemon.config.daemon.port` | Daemon API and metrics port | `7001` |
+| `observer.daemon.config.export.enabled` | Export daemon metrics through the OTel collector | `false` |
+| `observer.daemon.serviceAccount.create` | Create daemon service account | `true` |
+| `observer.daemon.serviceAccount.name` | Daemon service account name | `neuron-observer` |
+| `observer.daemon.serviceAccount.annotations` | Daemon service account annotations | `{}` |
+| `observer.daemon.resources` | Resource requests and limits | See values.yaml |
+| `observer.daemon.tolerations` | Pod tolerations | See values.yaml |
+| `observer.daemon.nodeSelector` | Node selector (label set by the Neuron device plugin or DRA driver) | `{neuron.amazonaws.com/present: "true"}` |
+| `observer.daemon.affinity` | Pod affinity rules | See values.yaml |
+
+#### Observer Monitoring
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `observer.monitoring.releaseLabel` | `release` label on the PodMonitor and PrometheusRule (`""` omits it) | `monitoring` |
+| `observer.monitoring.additionalLabels` | Extra labels on all Prometheus Operator resources | `{}` |
+| `observer.monitoring.grafanaDashboards.enabled` | Create the reference Grafana dashboard ConfigMaps | `false` |
+| `observer.monitoring.grafanaDashboards.namespace` | Namespace watched by the Grafana dashboard sidecar | `monitoring` |
+| `observer.monitoring.grafanaDashboards.label` | Dashboard sidecar discovery label key | `grafana_dashboard` |
+| `observer.monitoring.grafanaDashboards.labelValue` | Dashboard sidecar discovery label value | `"1"` |
+| `observer.monitoring.grafanaDashboards.additionalLabels` | Extra labels on dashboard ConfigMaps | `{}` |
+| `observer.monitoring.grafanaDashboards.annotations` | Annotations on dashboard ConfigMaps | `{}` |
+| `observer.monitoring.podMonitor.enabled` | Render the daemon PodMonitor (auto-detected from the CRD when unset) | `null` |
+| `observer.monitoring.podMonitor.interval` | Prometheus scrape interval | `30s` |
+| `observer.monitoring.podMonitor.scrapeTimeout` | Optional Prometheus scrape timeout | unset |
+| `observer.monitoring.podMonitor.releaseLabel` | Optional per-resource `release` label override | inherits `observer.monitoring.releaseLabel` |
+| `observer.monitoring.podMonitor.additionalLabels` | Extra labels on the PodMonitor | `{}` |
+| `observer.monitoring.prometheusRule.enabled` | Render the reference alert PrometheusRule (requires the PodMonitor) | `false` |
+| `observer.monitoring.prometheusRule.releaseLabel` | Optional per-resource `release` label override | inherits `observer.monitoring.releaseLabel` |
+| `observer.monitoring.prometheusRule.additionalLabels` | Extra labels on the PrometheusRule | `{}` |
+| `observer.monitoring.prometheusRule.test.enabled` | Add a `helm test` that checks the rules loaded in Prometheus | `false` |
+| `observer.monitoring.prometheusRule.test.prometheusUrl` | Prometheus URL used by the rules test | `http://prometheus-operated.monitoring:9090` |
+| `observer.monitoring.prometheusRule.test.deadlineSecs` | Maximum time for the rules test to wait | `60` |
+| `observer.monitoring.prometheusRule.test.intervalSecs` | Polling interval for the rules test | `5` |
+
+#### Observer OTel Collector
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `observer.otel.serviceAccount.create` | Create the OTel collector service account | `true` |
+| `observer.otel.serviceAccount.name` | OTel collector service account name | `neuron-observer-otel` |
+| `observer.otel.serviceAccount.annotations` | Service account annotations (e.g. IRSA role ARN) | `{}` |
+| `observer.otelDaemonCollector.namespaceOverride` | OTel collector namespace (must match the daemon namespace) | `neuron-observer` |
+| `observer.otelDaemonCollector.resources` | OTel collector resource requests and limits | See values.yaml |
+| `observer.otelDaemonCollector.awsRegion` | AWS region for the daemon collector (required for CloudWatch or AMP) | `""` |
+| `observer.otelDaemonCollector.pipelines.cloudwatch.enabled` | Export daemon metrics to CloudWatch | `false` |
+| `observer.otelDaemonCollector.pipelines.cloudwatch` | CloudWatch namespace, log group/stream, storage resolution, and metric declarations | See values.yaml |
+| `observer.otelDaemonCollector.pipelines.amp.enabled` | Export daemon metrics to Amazon Managed Prometheus | `false` |
+| `observer.otelDaemonCollector.pipelines.amp.endpoint` | AMP remote-write endpoint (required when AMP is enabled) | `""` |
+| `observer.otelDaemonCollector.pipelines.otlp.enabled` | Export daemon metrics to an OTLP endpoint | `false` |
+| `observer.otelDaemonCollector.pipelines.otlp.endpoint` | OTLP HTTP endpoint (required when OTLP is enabled) | `""` |
+
 ## Validation Rules
 
 The chart enforces the following validation rules:
@@ -284,3 +400,5 @@ The chart enforces the following validation rules:
 2. **Mutually exclusive scheduler modes**: Only one of `scheduler.customScheduler.enabled` or `scheduler.defaultScheduler.enabled` can be true
 3. **DRA Driver exclusivity**: `draDriver.enabled=true` cannot be used with `scheduler.enabled=true`
 4. **UltraServer Operator requires DRA Driver**: `ultraserverOperator.enabled=true` requires `draDriver.enabled=true`
+5. **Observer shared namespace**: the OTel collector must resolve to the same namespace as the daemon
+6. **Observer export requires a pipeline**: enabling `observer.daemon.config.export.enabled` requires at least one OTel collector pipeline to be enabled
