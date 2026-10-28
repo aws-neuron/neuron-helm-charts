@@ -11,7 +11,7 @@ draDriver:
   image:
     repository: public.ecr.aws/neuron/neuron-dra-driver
     pullPolicy: IfNotPresent
-    tag: "1.3.0"
+    tag: "1.4.0"
   podSecurityContext: {}
   serviceAccount:
     create: true
@@ -112,7 +112,7 @@ devicePlugin:
   image:
     repository: public.ecr.aws/neuron/neuron-device-plugin
     pullPolicy: IfNotPresent
-    tag: "2.33.0.0"
+    tag: "2.33.1.0"
   podSecurityContext: {}
   serviceAccount:
     create: true
@@ -178,7 +178,7 @@ scheduler:
   image:
     repository: public.ecr.aws/neuron/neuron-scheduler
     pullPolicy: IfNotPresent
-    tag: "2.33.0.0"
+    tag: "2.33.1.0"
   imagePullSecrets: []
   nameOverride: neuron-scheduler
   namespaceOverride: kube-system
@@ -255,7 +255,7 @@ ultraserverOperator:
   image:
     repository: public.ecr.aws/neuron/neuron-ultraserver-operator
     pullPolicy: IfNotPresent
-    tag: "0.3.0"
+    tag: "0.4.0"
   serviceAccount:
     create: true
     annotations: {}

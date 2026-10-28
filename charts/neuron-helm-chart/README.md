@@ -165,7 +165,7 @@ If the chart created the observer namespace (`observer.namespace.create=true`), 
 |-----------|-------------|---------|
 | `devicePlugin.enabled` | Enable Neuron Device Plugin | `true` |
 | `devicePlugin.image.repository` | Device Plugin image repository | `public.ecr.aws/neuron/neuron-device-plugin` |
-| `devicePlugin.image.tag` | Device Plugin image tag | `2.33.0.0` |
+| `devicePlugin.image.tag` | Device Plugin image tag | `2.33.1.0` |
 | `devicePlugin.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `devicePlugin.nameOverride` | Override component name | `neuron-device-plugin` |
 | `devicePlugin.namespaceOverride` | Override namespace | `kube-system` |
@@ -186,7 +186,7 @@ If the chart created the observer namespace (`observer.namespace.create=true`), 
 |-----------|-------------|---------|
 | `scheduler.enabled` | Enable Neuron Scheduler Extension (requires devicePlugin.enabled) | `false` |
 | `scheduler.image.repository` | Scheduler extension image repository | `public.ecr.aws/neuron/neuron-scheduler` |
-| `scheduler.image.tag` | Scheduler extension image tag | `2.33.0.0` |
+| `scheduler.image.tag` | Scheduler extension image tag | `2.33.1.0` |
 | `scheduler.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `scheduler.nameOverride` | Override component name | `neuron-scheduler` |
 | `scheduler.namespaceOverride` | Override namespace | `kube-system` |
@@ -276,7 +276,7 @@ If the chart created the observer namespace (`observer.namespace.create=true`), 
 |-----------|-------------|---------|
 | `draDriver.enabled` | Enable Neuron DRA Driver (mutually exclusive with devicePlugin and scheduler) | `false` |
 | `draDriver.image.repository` | DRA Driver image repository | `public.ecr.aws/neuron/neuron-dra-driver` |
-| `draDriver.image.tag` | DRA Driver image tag | `1.3.0` |
+| `draDriver.image.tag` | DRA Driver image tag | `1.4.0` |
 | `draDriver.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `draDriver.nameOverride` | Override component name | `neuron-dra-driver` |
 | `draDriver.namespaceOverride` | Override namespace | `neuron-dra-driver` |
@@ -308,7 +308,7 @@ If the chart created the observer namespace (`observer.namespace.create=true`), 
 |-----------|-------------|---------|
 | `ultraserverOperator.enabled` | Enable Neuron UltraServer Operator (requires draDriver.enabled) | `false` |
 | `ultraserverOperator.image.repository` | UltraServer Operator image repository | `public.ecr.aws/neuron/neuron-ultraserver-operator` |
-| `ultraserverOperator.image.tag` | UltraServer Operator image tag | `0.3.0` |
+| `ultraserverOperator.image.tag` | UltraServer Operator image tag | `0.4.0` |
 | `ultraserverOperator.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `ultraserverOperator.nameOverride` | Override component name | `neuron-ultraserver-operator` |
 | `ultraserverOperator.namespaceOverride` | Override namespace | `neuron-dra-driver` |
